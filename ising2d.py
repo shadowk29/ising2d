@@ -15,6 +15,7 @@ class ising2d():
         self.state = np.random.choice([0,1], size=(L,L))
         self.state[self.state == 0] = -1
         self.algorithm = algorithm
+        self.equilibrium = False
 
         
         self.correlation_time = None
@@ -25,12 +26,22 @@ class ising2d():
         self.observables = []
 
 
-
+    def update_system(self, T, B):
+        self.T = T
+        self.B = B
+        self.equilibrium = False
+        self.correlation_time = None
+    
     def update_microstate(self):
         """ Flip spins until the energy correlations are gone and an independent configuration is generated """
-        if self.correlation_time is not None:
-            for i in range(3*correlation_time):
-                self.__spinflip()
+        if self.equilibrium:
+            if self.correlation_time:
+                for i in range(3*correlation_time):
+                    self.__spinflip()
+            else:
+                raise RuntimeError('The correlation time has not been set') 
+        else:
+            raise RuntimeError('The system is not in equilibrium')
 
     
     def thermalize(self):
@@ -43,6 +54,7 @@ class ising2d():
             dE, dM = self.__spinflip()
             self.E += dE
             self.M += dM
+        self.equilibrium = True
 
     def correlation_time(self, plot=False):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
@@ -63,7 +75,7 @@ class ising2d():
         elif self.algorithm = 'wolff':
             dE, dM = self.__wolff()
         else:
-            print '{0} is not a supported algorithm'.format(algorithm)
+            raise NotImplementedError('The {0} algorithm is not supported'.format(self.algorithm))
         return dE, dM
 
     def __metropolis(self):
@@ -106,10 +118,12 @@ class ising2d():
             self.E += dE
             self.M += dM
             self.energy[i] = self.E
-        
-
 
     ## output functions
+    def print_energy_evolution(self, filename):
+        """ Save the time evolution of the energy to a csv file """
+        pass
+    
     def print_state(self, filename):
         """ Print a 2D binary matrix representing the spins in the system """
         pass
