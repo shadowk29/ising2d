@@ -96,10 +96,7 @@ class ising2d():
     def __energy(self):
         """ Calculate the total energy of the system """
         energy = 0
-        for i in range(self.L):
-            for j in range(self.L):
-                energy -= self.state[i,j]*(self.state[i, (j+1)%self.L] + self.state[(i+1)%self.L, j] + self.B)
-        self.E = energy
+        self.E = np.sum(self.state*(np.roll(self.state, 1, axis=0) + np.roll(self.state, 1, axis=1) + B))
 
     def __magnetization(self):
         """ Calculate the total magnetization of the system """
