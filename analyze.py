@@ -6,7 +6,7 @@ import matplotlib.pyplot as pl
 def main():
     df = pd.read_csv('test.csv')
     temperature = df['T'].unique()
-    N = 25
+    N = 100
     energy = np.zeros(len(temperature))
     mag = np.zeros(len(temperature))
     cv = np.zeros(len(temperature))
