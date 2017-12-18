@@ -7,40 +7,30 @@ from scipy.optimize import curve_fit
 
 
 class ising2d():
-    def __init__(self, L, T, B, algorithm='metropolis'):
+    def __init__(self, algorithm='metropolis'):
+        self.algorithm = algorithm
+        self.observables = []
+
+
+    def update_system(self, L, T, B):
+        if T < 1:
+            raise ValueError('The Monte Carlo method cannot be reliably used for T < 1')
+        if np.absolute(B) > 0 and algorithm == 'wolff':
+            raise ValueError('The Wolff Algorithm can only be used when B = 0')
         self.T = T
         self.B = B
         self.L = L
         self.N = L**2
         self.state = np.random.choice([-1,1], size=(L,L))
         
-        self.algorithm = algorithm
         self.equilibrium = False
-
-        
         self.corrtime = None
         self.energy_evolution = None
         self.autocorrelation = None
         self.delays = None
-        self.observables = []
 
         self.__energy()
         self.__magnetization()
-        self.__probability()
-
-
-    def update_system(self, T, B):
-        self.T = T
-        self.B = B
-        self.equilibrium = False
-        self.correlation_time = None
-        self.energy_evolution = None
-        self.autocorrelation = None
-        self.delays = None
-        self.observables = []
-
-        self.E = self.__energy()
-        self.M = self.__magnetization()
         self.__probability()
     
     def update_microstate(self):
@@ -57,25 +47,29 @@ class ising2d():
     
     def thermalize(self):
         """ Perform enough spin flip operations that the system reaches thermal equilibrium """
+        print 'Thermalizing system...'
         if self.algorithm == 'metropolis':
             steps = 100*self.N**2
         else:
             steps = 100*self.N
         self.__spinflip(steps)
         self.equilibrium = True
+        print 'Done'
 
     def correlation_time(self, plot=False):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
+        print 'Calculating correlation time...'
         self.__energy_evolution()
         self.__autocorrelation()
         self.delays = np.arange(len(self.autocorrelation))
         popt, pcov = curve_fit(self.__exponential, self.delays, self.autocorrelation, p0=[self.N])
-        self.corrtime = popt[0]
+        self.corrtime = int(popt[0])
         if plot:
             pl.plot(self.delays, self.autocorrelation, label='Autocorrelation of Energy')
             pl.plot(self.delays, self.__exponential(self.delays, self.corrtime), label='Single Exponential Fit')
             pl.legend(loc='best')
             pl.show()
+        print 'Done'
 
     ##private internal utility functions
     def __spinflip(self, steps, save=False):

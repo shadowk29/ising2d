@@ -1,17 +1,25 @@
-import ising2d
+from ising2d import ising2d
 import numpy as np
+import pandas as pd
 
 
 def main():
-    magnet = ising2d.ising2d(4, 2.26918531421302196811, 0, 'metropolis')
-    magnet.thermalize()
-    magnet.correlation_time(plot=True)
-    print magnet.corrtime
-    print magnet.probability
-    for i in range(100):
-        magnet.update_microstate()
-        magnet.save_observables()
+    temperature = np.linspace(1, 4, 20)
+    B = 0
+    L = 10
+    magnet = ising2d('metropolis')
+    for T in temperature:
+        magnet.update_system(L, T, B)
+        magnet.thermalize()
+        magnet.correlation_time()
+        for i in range(10000):
+            print i
+            magnet.update_microstate()
     magnet.print_observables('test.csv')
+
+
+
+    
     
 
 
