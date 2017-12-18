@@ -14,8 +14,6 @@ def main():
         for T in temperature:
             bar.update()
             magnet.update_system(L, T, B)
-            magnet.thermalize()
-            magnet.correlation_time()
             for i in range(states):
                 bar.update(np.where(temperature == T)[0][0]*states + i)
                 magnet.update_microstate()

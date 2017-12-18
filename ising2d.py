@@ -24,7 +24,6 @@ class ising2d():
         self.N = L**2
         self.state = np.random.choice([-1,1], size=(L,L))
         
-        self.equilibrium = False
         self.corrtime = None
         self.energy_evolution = None
         self.autocorrelation = None
@@ -33,38 +32,32 @@ class ising2d():
         self.__energy()
         self.__magnetization()
         self.__probability()
-
+        self.__thermalize()
+        self.__correlation_time()
         self.ready = True
     
     def update_microstate(self):
         """ Flip spins until the energy correlations are gone and an independent configuration is generated """
-        if self.equilibrium:
-            if self.corrtime:
-                    self.__spinflip(5*self.corrtime)
-                    self.__save_observables()
+            if self.ready:
+                self.__spinflip(5*self.corrtime)
+                self.__save_observables()
             else:
-                raise RuntimeError('The correlation time has not been set') 
-        else:
-            raise RuntimeError('The system is not in equilibrium')
+                raise RuntimeError('The ensemble (L,B,T) has not been specified')
 
-    
-    def thermalize(self):
+    ##private internal utility functions
+
+    def __thermalize(self):
         """ Perform enough spin flip operations that the system reaches thermal equilibrium """
         print '\nThermalizing system...'
-        if not self.ready:
-            raise RuntimeError('The system parameters have not been set')
         if self.algorithm == 'metropolis':
             steps = 100*self.N**2
         else:
             steps = 100*self.N
         self.__spinflip(steps)
-        self.equilibrium = True
 
-    def correlation_time(self, plot=False):
+    def __correlation_time(self, plot=False):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
         print '\nCalculating correlation time...'
-        if not self.equilibrium:
-            raise RuntimeError('The system is not in equilibrium')
         self.__energy_evolution()
         self.__autocorrelation()
         self.delays = np.arange(len(self.autocorrelation))
@@ -77,8 +70,7 @@ class ising2d():
             pl.plot(self.delays, self.__exponential(self.delays, self.corrtime), label='Single Exponential Fit')
             pl.legend(loc='best')
             pl.show()
-
-    ##private internal utility functions
+            
     def __spinflip(self, steps, save=False):
         """ perform a single spin update step using the given algorithm """
         if self.algorithm == 'metropolis':
