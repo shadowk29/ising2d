@@ -47,29 +47,29 @@ class ising2d():
     
     def thermalize(self):
         """ Perform enough spin flip operations that the system reaches thermal equilibrium """
-        print 'Thermalizing system...'
+        print '\nThermalizing system...'
         if self.algorithm == 'metropolis':
             steps = 100*self.N**2
         else:
             steps = 100*self.N
         self.__spinflip(steps)
         self.equilibrium = True
-        print 'Done'
 
     def correlation_time(self, plot=False):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
-        print 'Calculating correlation time...'
+        print '\nCalculating correlation time...'
         self.__energy_evolution()
         self.__autocorrelation()
         self.delays = np.arange(len(self.autocorrelation))
         popt, pcov = curve_fit(self.__exponential, self.delays, self.autocorrelation, p0=[self.N])
         self.corrtime = int(popt[0])
+        if self.corrtime == 0:
+            self.corrtime = 1
         if plot:
             pl.plot(self.delays, self.autocorrelation, label='Autocorrelation of Energy')
             pl.plot(self.delays, self.__exponential(self.delays, self.corrtime), label='Single Exponential Fit')
             pl.legend(loc='best')
             pl.show()
-        print 'Done'
 
     ##private internal utility functions
     def __spinflip(self, steps, save=False):
