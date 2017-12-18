@@ -93,7 +93,7 @@ class ising2d():
             j = spin[1] % self.L
             s = state[i,j]
             ss = (s+1)//2
-            neighbours = [state[i, (j+1)%self.L], state[i, (j-1)%self.L], state[(i+1)%self.L, j], state[(i-1)%self.L, j]]
+            neighbours = np.array([state[i, (j+1)%self.L, state[i, (j-1)%self.L, state[(i+1)%self.L, j, state[(i-1)%self.L, j],dtype=np.int64)
             upneighbours = np.sum((neighbours+1)//2)
             p = self.probability[ss, upneighbours]
             if p >= 1 or np.random.rand() < p:
