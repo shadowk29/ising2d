@@ -20,9 +20,8 @@ class ising2d():
 
         
         self.correlation_time = None
-        self.energy = None
+        self.energy_evolution = None
         self.autocorrelation = None
-        self.energy = None
         self.delays = None
         self.observables = []
 
@@ -119,12 +118,12 @@ class ising2d():
     def __energy_evolution(self):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
         steps = 20*self.N
-        self.energy = np.zeros(steps)
+        self.energy_evolution = np.zeros(steps)
         for i in range(steps):
             dE, dM = self.__spinflip()
             self.E += dE
             self.M += dM
-            self.energy[i] = self.E
+            self.energy_evolution[i] = self.E
 
     def __probability(self):
         if self.algorithm == 'metropolis':
