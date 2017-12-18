@@ -125,12 +125,13 @@ class ising2d():
         if self.algorithm == 'metropolis':
             self.energytable = np.zeros((2,5))
             for j in range(5):
-                self.energytable[0,j] = 4.0 - 2.0*j - 2*self.B
-                self.energytable[1,j] = 2.0*j - 4.0 + 2*self.B
-            self.probability = np.minimum(1.0, np.exp(-2.0/self.T*self.energytable))
-                
+                self.energytable[0,j] = 4.0 - 2.0*j - 2*self.B #spin down, with j neighbours spin up
+                self.energytable[1,j] = 2.0*j - 4.0 + 2*self.B #spin up, with j neighnours spin up
+            self.probability = np.minimum(1.0, np.exp(-2.0/self.T*self.energytable))     
         elif self.algorithm == 'wolff':
             self.probability = 1.0 - np.exp(-2.0/self.T)
+        else:
+            raise NotImplementedError('The {0} algorithm is not supported'.format(self.algorithm))
             
 
     ## output functions
