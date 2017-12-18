@@ -18,7 +18,7 @@ class ising2d():
         self.equilibrium = False
 
         
-        self.correlation_time = None
+        self.corrtime = None
         self.energy_evolution = None
         self.autocorrelation = None
         self.delays = None
@@ -46,9 +46,8 @@ class ising2d():
     def update_microstate(self):
         """ Flip spins until the energy correlations are gone and an independent configuration is generated """
         if self.equilibrium:
-            if self.correlation_time:
-                for i in range(3*correlation_time):
-                    self.__spinflip()
+            if self.corrtime:
+                    self.__spinflip(5*self.corrtime)
             else:
                 raise RuntimeError('The correlation time has not been set') 
         else:
@@ -58,36 +57,42 @@ class ising2d():
     def thermalize(self):
         """ Perform enough spin flip operations that the system reaches thermal equilibrium """
         if self.algorithm == 'metropolis':
-            steps = self.N**2
+            steps = 100*self.N**2
         else:
-            steps = self.N
+            steps = 100*self.N
         self.__spinflip(steps)
         self.equilibrium = True
 
     def correlation_time(self, plot=False):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
+        self.__energy_evolution()
+        self.__autocorrelation()
         self.delays = np.arange(len(self.autocorrelation))
-        popt, pcov = curve_fit(exponential, delays, self.autocorrelation, p0=[self.N])
-        self.correlation_time = popt[0]
+        points = len(self.energy_evolution)//5
+        popt, pcov = curve_fit(self.__exponential, self.delays[:points], self.autocorrelation[:points], p0=[self.N])
+        self.corrtime = popt[0]
         if plot:
-            pl.plot(self.delays, self.autocorrelation, label='Autocorrelation of Energy')
-            pl.plot(self.delays, self.exponential(self.delays, n0), label='Single Exponential Fit')
+            pl.plot(self.delays[:points], self.autocorrelation[:points], label='Autocorrelation of Energy')
+            pl.plot(self.delays[:points], self.__exponential(self.delays[:points], self.corrtime), label='Single Exponential Fit')
             pl.legend(loc='best')
             pl.show()
 
     ##private internal utility functions
-    def __spinflip(self, steps):
+    def __spinflip(self, steps, save=False):
         """ perform a single spin update step using the given algorithm """
         if self.algorithm == 'metropolis':
-            self.__metropolis(steps)
+            self.__metropolis(steps, save)
         elif self.algorithm == 'wolff':
-            self.__wolff(steps)
+            self.__wolff(steps, save)
         else:
             raise NotImplementedError('The {0} algorithm is not supported'.format(self.algorithm))
 
-    def __metropolis(self, steps):
+    def __metropolis(self, steps, save):
         """ perform spin update steps using the Metropolis algorithm """
+        if save:
+            self.energy_evolution = np.zeros(steps)
         spins = np.random.randint(0, self.L, size=(steps, 2))
+        step = 0
         for spin in spins:
             i = spin[0] % self.L
             j = spin[1] % self.L
@@ -100,8 +105,11 @@ class ising2d():
                 self.state[i,j] *= -1
                 self.E += self.energytable[ss, upneighbours]
                 self.M += 2*self.state[i,j]
+            if save:
+                self.energy_evolution[step] = self.E
+                step += 1
 
-    def __wolff(self, steps):
+    def __wolff(self, steps, save):
         """ perform a spin cluster update step using the Wolff algorithm """
         dE = 0
         dM = 0
@@ -121,8 +129,9 @@ class ising2d():
         """ Calculate the total magnetization of the system """
         self.M = np.sum(self.state)
 
-    def __autocorrelation(self, energy):
+    def __autocorrelation(self):
         """ Calculate the autocorrelation of the energy of the system using that fact that the autocorrelation is the Fourier Transform of the PSD """
+        energy = self.energy_evolution
         xp = ifftshift((energy - np.average(energy))/np.std(energy))
         n = len(xp)
         xp = np.r_[xp[:n//2], np.zeros_like(xp), xp[n//2:]]
@@ -133,13 +142,10 @@ class ising2d():
 
     def __energy_evolution(self):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
-        steps = 20*self.N
-        self.energy_evolution = np.zeros(steps)
-        for i in range(steps):
-            dE, dM = self.__spinflip()
-            self.E += dE
-            self.M += dM
-            self.energy_evolution[i] = self.E
+        if self.algorithm == 'metropolis':
+            self.__spinflip(100*self.N**2, save=True)
+        elif self.algorithm == 'wolff':
+            raise NotImplementedError('wolff not yet implemented')
 
     def __probability(self):
         if self.algorithm == 'metropolis':
@@ -147,7 +153,7 @@ class ising2d():
             for j in range(5):
                 self.energytable[0,j] = 2*(4.0 - 2.0*j - 2*self.B) #spin down, with j neighbours spin up
                 self.energytable[1,j] = 2*(2.0*j - 4.0 + 2*self.B) #spin up, with j neighnours spin up
-            self.probability = np.minimum(1.0, np.exp(-1.0/self.T*self.energytable))     
+            self.probability = np.minimum(1.0, np.exp(-self.energytable/self.T))     
         elif self.algorithm == 'wolff':
             self.probability = 1.0 - np.exp(-2.0/self.T)
         else:
@@ -173,5 +179,5 @@ class ising2d():
 
     def save_observables(self):
         """ Add a row of observables to the list of saved microstates """
-        row = {'L': self.L, 'N': self.N, 'T': self.T, 'B': self.B, 'E': self.E, 'M': self.M, 'correlation_time': self.correlation_time}
+        row = {'L': self.L, 'N': self.N, 'T': self.T, 'B': self.B, 'E': self.E, 'M': self.M, 'correlation_time': self.corrtime}
         self.observables.append(row)
