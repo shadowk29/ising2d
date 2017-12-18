@@ -78,23 +78,33 @@ class ising2d():
     ##private internal utility functions
     def __spinflip(self, steps):
         """ perform a single spin update step using the given algorithm """
-        dE = 0
-        dM = 0
         if self.algorithm = 'metropolis':
-            dE, dM = self.__metropolis(steps)
+            self.__metropolis(steps)
         elif self.algorithm = 'wolff':
-            dE, dM = self.__wolff(steps)
+            self.__wolff(steps)
         else:
             raise NotImplementedError('The {0} algorithm is not supported'.format(self.algorithm))
-        self.E += dE
-        self.M += dM
 
     def __metropolis(self, steps):
-        """ perform a single spin update step using the Metropolis algorithm """
-        pass
+        """ perform spin update steps using the Metropolis algorithm """
+        spins = np.random.randint(0, self.L, size=(steps, 2))
+        for spin in spins:
+            i = spin[0] % self.L
+            j = spin[1] % self.L
+            s = state[i,j]
+            ss = (s+1)//2
+            neighbours = [state[i, (j+1)%self.L], state[i, (j-1)%self.L], state[(i+1)%self.L, j], state[(i-1)%self.L, j]]
+            upneighbours = np.sum((neighbours+1)//2)
+            p = self.probability[ss, upneighbours]
+            if p >= 1 or np.random.rand() < p:
+                state[i,j] *= -1
+                self.E += self.energytable[ss, upneighbours]
+                self.M += 2*state[i,j]
 
     def __wolff(self, steps):
         """ perform a spin cluster update step using the Wolff algorithm """
+        dE = 0
+        dM = 0
         pass
 
 
@@ -115,11 +125,11 @@ class ising2d():
         """ Calculate the autocorrelation of the energy of the system using that fact that the autocorrelation is the Fourier Transform of the PSD """
         xp = ifftshift((energy - np.average(energy))/np.std(energy))
         n = len(xp)
-        xp = np.r_[xp[:n/2], np.zeros_like(xp), xp[n/2:]]
+        xp = np.r_[xp[:n//2], np.zeros_like(xp), xp[n//2:]]
         f = fft(xp)
         S = np.absolute(f)**2
         R = ifft(S)
-        self.autocorrelation = np.real(R)[:n/2]/(np.arange(n/2)[::-1]+n/2)
+        self.autocorrelation = np.real(R)[:n//2]/(np.arange(n//2)[::-1]+n//2)
 
     def __energy_evolution(self):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
