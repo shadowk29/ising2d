@@ -7,7 +7,7 @@ from scipy.optimize import curve_fit
 
 
 class ising2d():
-    def __init__(L, T, B, algorithm='metropolis'):
+    def __init__(self, L, T, B, algorithm='metropolis'):
         self.T = T
         self.B = B
         self.L = L
@@ -24,8 +24,8 @@ class ising2d():
         self.delays = None
         self.observables = []
 
-        self.E = self.__energy()
-        self.M = self.__magnetization()
+        self.__energy()
+        self.__magnetization()
         self.__probability()
 
 
@@ -58,9 +58,9 @@ class ising2d():
     def thermalize(self):
         """ Perform enough spin flip operations that the system reaches thermal equilibrium """
         if self.algorithm == 'metropolis':
-            steps = N**2
+            steps = self.N**2
         else:
-            steps = N
+            steps = self.N
         self.__spinflip(steps)
         self.equilibrium = True
 
@@ -78,9 +78,9 @@ class ising2d():
     ##private internal utility functions
     def __spinflip(self, steps):
         """ perform a single spin update step using the given algorithm """
-        if self.algorithm = 'metropolis':
+        if self.algorithm == 'metropolis':
             self.__metropolis(steps)
-        elif self.algorithm = 'wolff':
+        elif self.algorithm == 'wolff':
             self.__wolff(steps)
         else:
             raise NotImplementedError('The {0} algorithm is not supported'.format(self.algorithm))
@@ -91,15 +91,15 @@ class ising2d():
         for spin in spins:
             i = spin[0] % self.L
             j = spin[1] % self.L
-            s = state[i,j]
+            s = self.state[i,j]
             ss = (s+1)//2
-            neighbours = np.array([state[i, (j+1)%self.L, state[i, (j-1)%self.L, state[(i+1)%self.L, j, state[(i-1)%self.L, j],dtype=np.int64)
+            neighbours = np.array([self.state[i, (j+1)%self.L], self.state[i, (j-1)%self.L], self.state[(i+1)%self.L, j], self.state[(i-1)%self.L, j]],dtype=np.int64)
             upneighbours = np.sum((neighbours+1)//2)
             p = self.probability[ss, upneighbours]
             if p >= 1 or np.random.rand() < p:
-                state[i,j] *= -1
+                self.state[i,j] *= -1
                 self.E += self.energytable[ss, upneighbours]
-                self.M += 2*state[i,j]
+                self.M += 2*self.state[i,j]
 
     def __wolff(self, steps):
         """ perform a spin cluster update step using the Wolff algorithm """
@@ -114,12 +114,12 @@ class ising2d():
 
     def __energy(self):
         """ Calculate the total energy of the system """
-        energy = 0
-        self.E = np.sum(self.state*(np.roll(self.state, 1, axis=0) + np.roll(self.state, 1, axis=1) + B))
+        self.E = -np.sum(self.state*(np.roll(self.state, 1, axis=0) + np.roll(self.state, 1, axis=1) + self.B))
+            
 
     def __magnetization(self):
         """ Calculate the total magnetization of the system """
-        self.M = np.sum(state)
+        self.M = np.sum(self.state)
 
     def __autocorrelation(self, energy):
         """ Calculate the autocorrelation of the energy of the system using that fact that the autocorrelation is the Fourier Transform of the PSD """
@@ -145,9 +145,9 @@ class ising2d():
         if self.algorithm == 'metropolis':
             self.energytable = np.zeros((2,5))
             for j in range(5):
-                self.energytable[0,j] = 4.0 - 2.0*j - 2*self.B #spin down, with j neighbours spin up
-                self.energytable[1,j] = 2.0*j - 4.0 + 2*self.B #spin up, with j neighnours spin up
-            self.probability = np.minimum(1.0, np.exp(-2.0/self.T*self.energytable))     
+                self.energytable[0,j] = 2*(4.0 - 2.0*j - 2*self.B) #spin down, with j neighbours spin up
+                self.energytable[1,j] = 2*(2.0*j - 4.0 + 2*self.B) #spin up, with j neighnours spin up
+            self.probability = np.minimum(1.0, np.exp(-1.0/self.T*self.energytable))     
         elif self.algorithm == 'wolff':
             self.probability = 1.0 - np.exp(-2.0/self.T)
         else:
