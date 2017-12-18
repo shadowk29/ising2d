@@ -53,9 +53,7 @@ class ising2d():
         else:
             steps = N
         for i in range(steps):
-            dE, dM = self.__spinflip()
-            self.E += dE
-            self.M += dM
+            self.__spinflip()
         self.equilibrium = True
 
     def correlation_time(self, plot=False):
@@ -72,13 +70,16 @@ class ising2d():
     ##private internal utility functions
     def __spinflip(self):
         """ perform a single spin update step using the given algorithm """
+        dE = 0
+        dM = 0
         if self.algorithm = 'metropolis':
             dE, dM = self.__metropolis()
         elif self.algorithm = 'wolff':
             dE, dM = self.__wolff()
         else:
             raise NotImplementedError('The {0} algorithm is not supported'.format(self.algorithm))
-        return dE, dM
+        self.E += dE
+        self.M += dM
 
     def __metropolis(self):
         """ perform a single spin update step using the Metropolis algorithm """
