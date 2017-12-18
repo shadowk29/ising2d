@@ -20,10 +20,10 @@ def main():
         cv[i] = np.var(energies)/(N*temperature[i]**2)
         chi[i] = np.var(mags)/(N*temperature[i])
 
-    pl.plot(temperature, energy)
+    pl.plot(temperature, energy/N)
     pl.show()
 
-    pl.plot(temperature, mag)
+    pl.plot(temperature, mag/N, temperature, (1-np.sinh(2.0/temperature)**(-4.0))**(1.0/8.0))
     pl.show()
     
     pl.plot(temperature, cv)

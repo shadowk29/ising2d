@@ -13,7 +13,8 @@ def main():
         magnet.thermalize()
         magnet.correlation_time()
         for i in range(10000):
-            print i
+            if i%1000 == 0:
+                print i
             magnet.update_microstate()
     magnet.print_observables('test.csv')
 
