@@ -13,8 +13,7 @@ class ising2d():
         self.L = L
         self.N = L**2
         self.state = np.random.choice([-1,1], size=(L,L))
-        self.E = self.__energy()
-        self.M = self.__magnetization()
+        
         self.algorithm = algorithm
         self.equilibrium = False
 
@@ -25,6 +24,8 @@ class ising2d():
         self.delays = None
         self.observables = []
 
+        self.E = self.__energy()
+        self.M = self.__magnetization()
         self.__probability()
 
 
@@ -33,6 +34,14 @@ class ising2d():
         self.B = B
         self.equilibrium = False
         self.correlation_time = None
+        self.energy_evolution = None
+        self.autocorrelation = None
+        self.delays = None
+        self.observables = []
+
+        self.E = self.__energy()
+        self.M = self.__magnetization()
+        self.__probability()
     
     def update_microstate(self):
         """ Flip spins until the energy correlations are gone and an independent configuration is generated """
@@ -52,8 +61,7 @@ class ising2d():
             steps = N**2
         else:
             steps = N
-        for i in range(steps):
-            self.__spinflip()
+        self.__spinflip(steps)
         self.equilibrium = True
 
     def correlation_time(self, plot=False):
@@ -68,24 +76,24 @@ class ising2d():
             pl.show()
 
     ##private internal utility functions
-    def __spinflip(self):
+    def __spinflip(self, steps):
         """ perform a single spin update step using the given algorithm """
         dE = 0
         dM = 0
         if self.algorithm = 'metropolis':
-            dE, dM = self.__metropolis()
+            dE, dM = self.__metropolis(steps)
         elif self.algorithm = 'wolff':
-            dE, dM = self.__wolff()
+            dE, dM = self.__wolff(steps)
         else:
             raise NotImplementedError('The {0} algorithm is not supported'.format(self.algorithm))
         self.E += dE
         self.M += dM
 
-    def __metropolis(self):
+    def __metropolis(self, steps):
         """ perform a single spin update step using the Metropolis algorithm """
         pass
 
-    def __wolff(self):
+    def __wolff(self, steps):
         """ perform a spin cluster update step using the Wolff algorithm """
         pass
 
