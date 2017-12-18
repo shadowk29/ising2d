@@ -123,18 +123,10 @@ class ising2d():
 
     def __probability(self):
         if self.algorithm == 'metropolis':
-            self.energytable = np.zeros((2,2,2,2,2))
-            for i in range(32):
-                if not (i >> 4) & 1: #spin under consideration is down
-                    numsame = 4
-                    for j in range(4):
-                        numsame -= ((i >> j) & 1) #count down spin neighbours
-                    self.energytable[(i >> 4) & 1, (i >> 3) & 1, (i >> 2) & 1, (i >> 1) & 1, (i >> 0) & 1] = 2*numsame - 4 - self.B
-                else: #spin under consideration is up
-                    numsame = 0
-                    for j in range(4):
-                        numsame += ((i >> j) & 1) #count up spin neighbours
-                    self.energytable[(i >> 4) & 1, (i >> 3) & 1, (i >> 2) & 1, (i >> 1) & 1, (i >> 0) & 1] = 2*numsame - 4 + self.B
+            self.energytable = np.zeros((2,5))
+            for j in range(5):
+                self.energytable[0,j] = 4.0 - 2.0*j - 2*self.B
+                self.energytable[1,j] = 2.0*j - 4.0 + 2*self.B
             self.probability = np.minimum(1.0, np.exp(-2.0/self.T*self.energytable))
                 
         elif self.algorithm == 'wolff':
