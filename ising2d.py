@@ -10,6 +10,7 @@ class ising2d():
     def __init__(self, algorithm='metropolis'):
         self.algorithm = algorithm
         self.observables = []
+        self.ready = False
 
 
     def update_system(self, L, T, B):
@@ -32,6 +33,8 @@ class ising2d():
         self.__energy()
         self.__magnetization()
         self.__probability()
+
+        self.ready = True
     
     def update_microstate(self):
         """ Flip spins until the energy correlations are gone and an independent configuration is generated """
@@ -48,6 +51,8 @@ class ising2d():
     def thermalize(self):
         """ Perform enough spin flip operations that the system reaches thermal equilibrium """
         print '\nThermalizing system...'
+        if not self.ready:
+            raise RuntimeError('The system parameters have not been set')
         if self.algorithm == 'metropolis':
             steps = 100*self.N**2
         else:
@@ -58,6 +63,8 @@ class ising2d():
     def correlation_time(self, plot=False):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
         print '\nCalculating correlation time...'
+        if not self.equilibrium:
+            raise RuntimeError('The system is not in equilibrium')
         self.__energy_evolution()
         self.__autocorrelation()
         self.delays = np.arange(len(self.autocorrelation))
