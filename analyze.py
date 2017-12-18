@@ -15,21 +15,25 @@ def main():
     for i in range(len(temperature)):
         energies = df[df['T'] == temperature[i]]['E'].values
         mags = np.absolute(df[df['T'] == temperature[i]]['M'].values)
-        energy[i] = np.average(energies)
-        mag[i] = np.average(mags)
+        energy[i] = np.average(energies)/N
+        mag[i] = np.average(mags)/N
         cv[i] = np.var(energies)/(N*temperature[i]**2)
         chi[i] = np.var(mags)/(N*temperature[i])
 
-    pl.plot(temperature, energy/N, 'o-')
+    pl.plot(temperature, energy, 'o-')
+    pl.axvline(x=2/np.log(1+np.sqrt(2)))
     pl.show()
 
-    pl.plot(temperature, mag/N, 'o-', np.linspace(1,4,200), (1-np.sinh(2.0/np.linspace(1,4,200))**(-4.0))**(1.0/8.0))
+    pl.plot(temperature, mag, 'o-', np.linspace(1,4,200), (1-np.sinh(2.0/np.linspace(1,4,200))**(-4.0))**(1.0/8.0))
+    pl.axvline(x=2/np.log(1+np.sqrt(2)))
     pl.show()
     
     pl.plot(temperature, cv, 'o-')
+    pl.axvline(x=2/np.log(1+np.sqrt(2)))
     pl.show()
 
     pl.plot(temperature, chi, 'o-')
+    pl.axvline(x=2/np.log(1+np.sqrt(2)))
     pl.show()
 
 

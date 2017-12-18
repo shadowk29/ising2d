@@ -104,8 +104,6 @@ class ising2d():
 
     def __wolff(self, steps, save):
         """ perform a spin cluster update step using the Wolff algorithm """
-        dE = 0
-        dM = 0
         pass
 
 
