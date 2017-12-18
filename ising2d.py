@@ -12,8 +12,9 @@ class ising2d():
         self.B = B
         self.L = L
         self.N = L**2
-        self.state = np.random.choice([0,1], size=(L,L))
-        self.state[self.state == 0] = -1
+        self.state = np.random.choice([-1,1], size=(L,L))
+        self.E = self.__energy()
+        self.M = self.__magnetization()
         self.algorithm = algorithm
         self.equilibrium = False
 
@@ -95,11 +96,15 @@ class ising2d():
 
     def __energy(self):
         """ Calculate the total energy of the system """
-        pass
+        energy = 0
+        for i in range(self.L):
+            for j in range(self.L):
+                energy -= self.state[i,j]*(self.state[i, (j+1)%self.L] + self.state[(i+1)%self.L, j] + self.B)
+        self.E = energy
 
     def __magnetization(self):
         """ Calculate the total magnetization of the system """
-        pass
+        self.M = np.sum(state)
 
     def __autocorrelation(self, energy):
         """ Calculate the autocorrelation of the energy of the system using that fact that the autocorrelation is the Fourier Transform of the PSD """
