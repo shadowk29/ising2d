@@ -48,6 +48,7 @@ class ising2d():
         if self.equilibrium:
             if self.corrtime:
                     self.__spinflip(5*self.corrtime)
+                    self.__save_observables()
             else:
                 raise RuntimeError('The correlation time has not been set') 
         else:
@@ -68,12 +69,11 @@ class ising2d():
         self.__energy_evolution()
         self.__autocorrelation()
         self.delays = np.arange(len(self.autocorrelation))
-        points = len(self.energy_evolution)//5
-        popt, pcov = curve_fit(self.__exponential, self.delays[:points], self.autocorrelation[:points], p0=[self.N])
+        popt, pcov = curve_fit(self.__exponential, self.delays, self.autocorrelation, p0=[self.N])
         self.corrtime = popt[0]
         if plot:
-            pl.plot(self.delays[:points], self.autocorrelation[:points], label='Autocorrelation of Energy')
-            pl.plot(self.delays[:points], self.__exponential(self.delays[:points], self.corrtime), label='Single Exponential Fit')
+            pl.plot(self.delays, self.autocorrelation, label='Autocorrelation of Energy')
+            pl.plot(self.delays, self.__exponential(self.delays, self.corrtime), label='Single Exponential Fit')
             pl.legend(loc='best')
             pl.show()
 
@@ -132,13 +132,14 @@ class ising2d():
     def __autocorrelation(self):
         """ Calculate the autocorrelation of the energy of the system using that fact that the autocorrelation is the Fourier Transform of the PSD """
         energy = self.energy_evolution
+        maxdelay = len(energy)/5
         xp = ifftshift((energy - np.average(energy))/np.std(energy))
         n = len(xp)
         xp = np.r_[xp[:n//2], np.zeros_like(xp), xp[n//2:]]
         f = fft(xp)
         S = np.absolute(f)**2
         R = ifft(S)
-        self.autocorrelation = np.real(R)[:n//2]/(np.arange(n//2)[::-1]+n//2)
+        self.autocorrelation = (np.real(R)[:n//2]/(np.arange(n//2)[::-1]+n//2))[:maxdelay]
 
     def __energy_evolution(self):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
@@ -159,25 +160,26 @@ class ising2d():
         else:
             raise NotImplementedError('The {0} algorithm is not supported'.format(self.algorithm))
             
-
-    ## output functions
-    def print_energy_evolution(self, filename):
-        """ Save the time evolution of the energy to a csv file """
-        pass
-    
-    def print_state(self, filename):
-        """ Print a 2D binary matrix representing the spins in the system """
-        pass
-
-    def print_observables(self, filename):
-        """ Save all of the generated observables in a csv file """
-        pass
-
-    def print_autocorrelation(self, filename):
-        """ Save the autocorrelation function in a csv file """
-        pass
-
-    def save_observables(self):
+    def __save_observables(self):
         """ Add a row of observables to the list of saved microstates """
         row = {'L': self.L, 'N': self.N, 'T': self.T, 'B': self.B, 'E': self.E, 'M': self.M, 'correlation_time': self.corrtime}
         self.observables.append(row)
+        
+    ## output functions
+    def print_energy_evolution(self, filename):
+        """ Save the time evolution of the energy to a csv file """
+        np.savetxt(filename, self.energy_evolution, delimiter=',')
+    
+    def print_state(self, filename):
+        """ Print a 2D binary matrix representing the spins in the system """
+        np.savetxt(filename, self.state, delimiter=',')
+
+    def print_observables(self, filename):
+        """ Save all of the generated observables in a csv file """
+        pd.DataFrame(self.observables).to_csv(filename, sep=',', index=False)
+
+    def print_autocorrelation(self, filename):
+        """ Save the autocorrelation function in a csv file """
+        np.savetxt(filename, self.autocorrelation, delimiter=',')
+
+
