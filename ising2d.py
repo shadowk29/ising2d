@@ -16,7 +16,7 @@ class ising2d():
         self.microstates = microstates
         self.verbose = verbose
 
-        if any(temperatures > 1):
+        if any(temperatures < 1):
             raise ValueError('The Monte Carlo method cannot be reliably used for T < 1')
         if any(np.absolute(fields) > 0) and algorithm == 'wolff':
             raise ValueError('The Wolff Algorithm can only be used when B = 0')
@@ -170,6 +170,7 @@ class ising2d():
                     clusters += cluster
         self.cluster_count = count
         self.maxclustersize = maxclustersize
+        print np.sum(clusters)
                     
     def __exponential(self, n, n0):
         """ return a single exponential function for fitting """
