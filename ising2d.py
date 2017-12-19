@@ -10,12 +10,16 @@ class ising2d():
         self.algorithm = algorithm
         self.observables = []
         self.output_folder = output_folder
-        self.ready = False
         self.temperatures = temperatures
         self.fields = fields
         self.sizes = sizes
         self.microstates = microstates
         self.verbose = verbose
+
+        if any(temperatures > 1):
+            raise ValueError('The Monte Carlo method cannot be reliably used for T < 1')
+        if any(np.absolute(fields) > 0) and algorithm == 'wolff':
+            raise ValueError('The Wolff Algorithm can only be used when B = 0')
 
     def run(self):
         done = 0
@@ -31,32 +35,33 @@ class ising2d():
                             self.__update_microstate()
                             done += 1
                             bar.update(done)
-        self.print_observables()
+        self.__print_observables()
 
     ##private internal utility functions
+    
+    def __thermalize(self):
+        """ Perform enough spin flip operations that the system reaches thermal equilibrium """
+        if self.algorithm == 'metropolis':
+            steps = self.N**2
+        else:
+            steps = self.N
+        self.__spinflip(steps)
         
     def __update_system(self, L, T, B):
-        if T < 1:
-            raise ValueError('The Monte Carlo method cannot be reliably used for T < 1')
-        if np.absolute(B) > 0 and algorithm == 'wolff':
-            raise ValueError('The Wolff Algorithm can only be used when B = 0')
         self.T = T
         self.B = B
         self.L = L
         self.N = L**2
         self.state = np.random.choice([-1,1], size=(L,L))
-        
         self.corrtime = None
         self.energy_evolution = None
         self.autocorrelation = None
         self.delays = None
-
         self.__energy()
         self.__magnetization()
         self.__probability()
         self.__thermalize()
         self.__correlation_time()
-        self.ready = True
     
     def __update_microstate(self):
         """ Flip spins until the energy correlations are gone and an independent configuration is generated """
@@ -65,16 +70,6 @@ class ising2d():
             self.__save_observables()
         else:
             raise RuntimeError('The ensemble (L,B,T) has not been specified')
-
-
-
-    def __thermalize(self):
-        """ Perform enough spin flip operations that the system reaches thermal equilibrium """
-        if self.algorithm == 'metropolis':
-            steps = self.N**2
-        else:
-            steps = self.N
-        self.__spinflip(steps)
 
     def __correlation_time(self, plot=False):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
