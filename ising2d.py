@@ -7,9 +7,10 @@ from scipy.optimize import curve_fit
 
 
 class ising2d():
-    def __init__(self, algorithm='metropolis'):
+    def __init__(self, algorithm='metropolis', output_folder='.'):
         self.algorithm = algorithm
         self.observables = []
+        self.output_folder = folder
         self.ready = False
 
 
@@ -38,11 +39,11 @@ class ising2d():
     
     def update_microstate(self):
         """ Flip spins until the energy correlations are gone and an independent configuration is generated """
-            if self.ready:
-                self.__spinflip(5*self.corrtime)
-                self.__save_observables()
-            else:
-                raise RuntimeError('The ensemble (L,B,T) has not been specified')
+        if self.ready:
+            self.__spinflip(5*self.corrtime)
+            self.__save_observables()
+        else:
+            raise RuntimeError('The ensemble (L,B,T) has not been specified')
 
     ##private internal utility functions
 
@@ -50,9 +51,9 @@ class ising2d():
         """ Perform enough spin flip operations that the system reaches thermal equilibrium """
         print '\nThermalizing system...'
         if self.algorithm == 'metropolis':
-            steps = 100*self.N**2
+            steps = self.N**2
         else:
-            steps = 100*self.N
+            steps = self.N
         self.__spinflip(steps)
 
     def __correlation_time(self, plot=False):
@@ -91,7 +92,7 @@ class ising2d():
             j = spin[1] % self.L
             s = self.state[i,j]
             ss = (s+1)//2
-            neighbours = np.array([self.state[i, (j+1)%self.L], self.state[i, (j-1)%self.L], self.state[(i+1)%self.L, j], self.state[(i-1)%self.L, j]],dtype=np.int64)
+            neighbours = np.array([self.state[i, (j+1)%self.L], self.state[i, j-1], self.state[(i+1)%self.L, j], self.state[i-1, j]],dtype=np.int64)
             upneighbours = np.sum((neighbours+1)//2)
             p = self.probability[ss, upneighbours]
             if p >= 1 or np.random.rand() < p:
@@ -104,9 +105,58 @@ class ising2d():
 
     def __wolff(self, steps, save):
         """ perform a spin cluster update step using the Wolff algorithm """
-        pass
+        if save:
+            self.energy_evolution = np.zeros(steps)
+        for k in range(steps):
+            cluster, sign = self.__build_cluster(self.probability)
+            self.state[cluster == 1] *= -1
+            self.__energy()
+            self.M -= 2*np.sum(cluster)*sign
+            if save:
+                self.energy_evolution[k] = self.E
+        
 
+    def __build_cluster(self, prob, seed=None):
+        cluster = np.zeros(self.state.shape, dtype=np.int64)
+        pocket = []
+        if seed == None:
+            seed = np.squeeze(np.random.randint(0, self.L, size=(1,2)).tolist())
+        sign = self.state[seed[0], seed[1]]
+        cluster[seed[0], seed[1]] = 1
+        pocket.append(seed)
+        pocketnum = 1
+        index = 0
+        while index < pocketnum:
+            i = pocket[index][0]
+            j = pocket[index][1]
+            neighbours = [[(i+1)%self.L, j], [(i-1)%self.L, j], [i,(j+1)%self.L], [i, (j-1)%self.L]]
+            for neighbour in neighbours:
+                x = neighbour[0]
+                y = neighbour[1]
+                if self.state[i,j] == self.state[x,y] and cluster[x,y] != 1 and np.random.rand() < prob:
+                    pocket.append([x,y])
+                    cluster[x,y] = 1
+                    pocketnum += 1
+            index += 1
+        return cluster, sign
 
+    def __domain_size(self):
+        clusters = np.zeros(self.state.shape, dtype=np.int64)
+        clustersize = 0
+        maxclustersize = 0
+        count = 0
+        for i in range(self.L):
+            for j in range(self.L):
+                if clusters[i,j] == 0:
+                    cluster, sign = self.__build_cluster(1.0, [i,j])
+                    clustersize = np.sum(cluster)
+                    if clustersize > maxclustersize:
+                        maxclustersize = clustersize
+                    count += 1
+                    clusters += cluster
+        self.cluster_count = count
+        self.maxclustersize = maxclustersize
+                    
     def __exponential(self, n, n0):
         """ return a single exponential function for fitting """
         return np.exp(-(n/n0))
@@ -135,9 +185,9 @@ class ising2d():
     def __energy_evolution(self):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
         if self.algorithm == 'metropolis':
-            self.__spinflip(100*self.N**2, save=True)
+            self.__spinflip(50*self.N**2, save=True)
         elif self.algorithm == 'wolff':
-            raise NotImplementedError('wolff not yet implemented')
+            self.__spinflip(50*self.N, save=True)
 
     def __probability(self):
         if self.algorithm == 'metropolis':
@@ -153,24 +203,25 @@ class ising2d():
             
     def __save_observables(self):
         """ Add a row of observables to the list of saved microstates """
-        row = {'L': self.L, 'N': self.N, 'T': self.T, 'B': self.B, 'E': self.E, 'M': self.M, 'correlation_time': self.corrtime}
+        self.__domain_size()
+        row = {'L': self.L, 'N': self.N, 'T': self.T, 'B': self.B, 'E': self.E, 'M': self.M, 'correlation_time': self.corrtime, 'cluster_count': self.cluster_count, 'max_cluster_size': self.maxclustersize}
         self.observables.append(row)
         
     ## output functions
-    def print_energy_evolution(self, filename):
+    def print_energy_evolution(self):
         """ Save the time evolution of the energy to a csv file """
-        np.savetxt(filename, self.energy_evolution, delimiter=',')
+        np.savetxt(self.output_folder + '/energy_evolution_T={0}_B={1}_L{2}.csv'.format(self.T,self.B,self.L), self.energy_evolution, delimiter=',')
     
-    def print_state(self, filename):
+    def print_state(self):
         """ Print a 2D binary matrix representing the spins in the system """
-        np.savetxt(filename, self.state, delimiter=',')
+        np.savetxt(self.output_folder + '/state_matrix_T={0}_B={1}_L{2}.csv'.format(self.T,self.B,self.L), self.state, delimiter=',')
 
-    def print_observables(self, filename):
+    def print_observables(self):
         """ Save all of the generated observables in a csv file """
-        pd.DataFrame(self.observables).to_csv(filename, sep=',', index=False)
+        pd.DataFrame(self.observables).to_csv(self.output_folder + '/observables.csv'.format(self.T,self.B,self.L), sep=',', index=False)
 
-    def print_autocorrelation(self, filename):
+    def print_autocorrelation(self):
         """ Save the autocorrelation function in a csv file """
-        np.savetxt(filename, self.autocorrelation, delimiter=',')
+        np.savetxt(self.output_folder + '/autocorrelation_T={0}_B={1}_L{2}.csv'.format(self.T,self.B,self.L), self.autocorrelation, delimiter=',')
 
 

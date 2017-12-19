@@ -11,14 +11,17 @@ def main():
     mag = np.zeros(len(temperature))
     cv = np.zeros(len(temperature))
     chi = np.zeros(len(temperature))
-
+    corrtime = np.zeros(len(temperature))
     for i in range(len(temperature)):
         energies = df[df['T'] == temperature[i]]['E'].values
         mags = np.absolute(df[df['T'] == temperature[i]]['M'].values)
+        corrtimes = df[df['T'] == temperature[i]]['correlation_time'].values
+        
         energy[i] = np.average(energies)/N
         mag[i] = np.average(mags)/N
         cv[i] = np.var(energies)/(N*temperature[i]**2)
         chi[i] = np.var(mags)/(N*temperature[i])
+        corrtime[i] = np.average(corrtimes)
 
     pl.plot(temperature, energy, 'o-')
     pl.axvline(x=2/np.log(1+np.sqrt(2)))
@@ -36,10 +39,9 @@ def main():
     pl.axvline(x=2/np.log(1+np.sqrt(2)))
     pl.show()
 
-
-
-    
-    
+    pl.plot(temperature, corrtime, 'o-')
+    pl.axvline(x=2/np.log(1+np.sqrt(2)))
+    pl.show()
 
 
 if __name__=='__main__':

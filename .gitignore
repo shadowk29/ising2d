@@ -48,3 +48,6 @@ Temporary Items
 
 *.pyc
 *.csv
+*.ini
+*.png
+*output*
