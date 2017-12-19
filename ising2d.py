@@ -3,18 +3,39 @@ import matplotlib.pyplot as pl
 import pandas as pd
 from scipy.fftpack import fft, ifft, ifftshift
 from scipy.optimize import curve_fit
-
-
+import progressbar
 
 class ising2d():
-    def __init__(self, algorithm='metropolis', output_folder='.'):
+    def __init__(self, temperatures, fields, sizes, microstates, algorithm='metropolis', output_folder='.', verbose = False):
         self.algorithm = algorithm
         self.observables = []
-        self.output_folder = folder
+        self.output_folder = output_folder
         self.ready = False
+        self.temperatures = temperatures
+        self.fields = fields
+        self.sizes = sizes
+        self.microstates = microstates
+        self.verbose = verbose
 
+    def run(self):
+        done = 0
+        with progressbar.ProgressBar(max_value=self.microstates * len(self.sizes) * len(self.fields) * len(self.temperatures)) as bar:
+            for L in self.sizes:
+                for T in self.temperatures:
+                    for B in self.fields:
+                        self.__update_system(L,T,B)
+                        if self.verbose:
+                            self.__print_energy_evolution()
+                            self.__print_autocorrelation()
+                        for k in range(self.microstates):
+                            self.__update_microstate()
+                            done += 1
+                            bar.update(done)
+        self.print_observables()
 
-    def update_system(self, L, T, B):
+    ##private internal utility functions
+        
+    def __update_system(self, L, T, B):
         if T < 1:
             raise ValueError('The Monte Carlo method cannot be reliably used for T < 1')
         if np.absolute(B) > 0 and algorithm == 'wolff':
@@ -37,7 +58,7 @@ class ising2d():
         self.__correlation_time()
         self.ready = True
     
-    def update_microstate(self):
+    def __update_microstate(self):
         """ Flip spins until the energy correlations are gone and an independent configuration is generated """
         if self.ready:
             self.__spinflip(5*self.corrtime)
@@ -45,11 +66,10 @@ class ising2d():
         else:
             raise RuntimeError('The ensemble (L,B,T) has not been specified')
 
-    ##private internal utility functions
+
 
     def __thermalize(self):
         """ Perform enough spin flip operations that the system reaches thermal equilibrium """
-        print '\nThermalizing system...'
         if self.algorithm == 'metropolis':
             steps = self.N**2
         else:
@@ -58,7 +78,6 @@ class ising2d():
 
     def __correlation_time(self, plot=False):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
-        print '\nCalculating correlation time...'
         self.__energy_evolution()
         self.__autocorrelation()
         self.delays = np.arange(len(self.autocorrelation))
@@ -207,21 +226,16 @@ class ising2d():
         row = {'L': self.L, 'N': self.N, 'T': self.T, 'B': self.B, 'E': self.E, 'M': self.M, 'correlation_time': self.corrtime, 'cluster_count': self.cluster_count, 'max_cluster_size': self.maxclustersize}
         self.observables.append(row)
         
-    ## output functions
-    def print_energy_evolution(self):
+    def __print_energy_evolution(self):
         """ Save the time evolution of the energy to a csv file """
-        np.savetxt(self.output_folder + '/energy_evolution_T={0}_B={1}_L{2}.csv'.format(self.T,self.B,self.L), self.energy_evolution, delimiter=',')
-    
-    def print_state(self):
-        """ Print a 2D binary matrix representing the spins in the system """
-        np.savetxt(self.output_folder + '/state_matrix_T={0}_B={1}_L{2}.csv'.format(self.T,self.B,self.L), self.state, delimiter=',')
+        np.savetxt(self.output_folder + '/energy_evolution_T={0:.2f}_B={1:.2f}_L{2}.csv'.format(self.T,self.B,self.L), self.energy_evolution, delimiter=',')
 
-    def print_observables(self):
+    def __print_observables(self):
         """ Save all of the generated observables in a csv file """
         pd.DataFrame(self.observables).to_csv(self.output_folder + '/observables.csv'.format(self.T,self.B,self.L), sep=',', index=False)
 
-    def print_autocorrelation(self):
+    def __print_autocorrelation(self):
         """ Save the autocorrelation function in a csv file """
-        np.savetxt(self.output_folder + '/autocorrelation_T={0}_B={1}_L{2}.csv'.format(self.T,self.B,self.L), self.autocorrelation, delimiter=',')
+        np.savetxt(self.output_folder + '/autocorrelation_T={0:.2f}_B={1:.2f}_L{2}.csv'.format(self.T,self.B,self.L), self.autocorrelation, delimiter=',')
 
 
