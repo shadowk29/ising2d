@@ -1,15 +1,14 @@
 from ising2d import ising2d
 import numpy as np
 import pandas as pd
-import progressbar
 import itertools
 
 
 def main():
-    temperatures = np.linspace(2.3, 4, 20)
+    temperatures = [2.0/np.log(1+np.sqrt(2))]
     fields= [0]
-    sizes = [40]
-    microstates = 1000
+    sizes = [256, 128, 64, 32, 16, 8]
+    microstates = 10000
     magnet = ising2d(temperatures, fields, sizes, microstates, algorithm = 'wolff', output_folder = 'output', verbose=True)
     magnet.run()
 

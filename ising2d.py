@@ -201,7 +201,6 @@ class ising2d():
                     samples[k] += 4
         correlation /= samples
         self.correlation_length = correlation
-        if self.T > 2/np.log(1+np.sqrt(2)):
             x = np.arange(len(correlation))
             p0 = [5, 0]
             popt, pcov = curve_fit(self.__offset_exponential, x, correlation, p0=p0)
@@ -214,7 +213,7 @@ class ising2d():
         if self.algorithm == 'metropolis':
             self.__spinflip(50*self.N**2, save=True, label='Correlation time')
         elif self.algorithm == 'wolff':
-            self.__spinflip(np.maximum(1000, self.N/2), save=True, label='Calculating correlation time')
+            self.__spinflip(np.maximum(1000, self.N/2), save=True, label='Correlation time')
 
     def __probability(self):
         """ pre-define the spin-flip/cluster addition probabilities """
