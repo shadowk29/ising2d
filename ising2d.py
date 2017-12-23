@@ -201,6 +201,7 @@ class ising2d():
                     samples[k] += 4
         correlation /= samples
         self.correlation_length = correlation
+        if self.T >= 2/np.log(1+np.sqrt(2)):
             x = np.arange(len(correlation))
             p0 = [5, 0]
             popt, pcov = curve_fit(self.__offset_exponential, x, correlation, p0=p0)
