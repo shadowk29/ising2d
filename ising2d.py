@@ -129,7 +129,7 @@ class ising2d():
             iterator = range(steps)
         for k in iterator:
             cluster, sign = self.__build_cluster(self.probability)
-            if self.B == 0 or (np.sign(self.B) == -sign) or (np.absolute(self.B) > 0 and np.random.rand() < np.exp(-2*sign*self.B*np.sum(cluster))):
+            if self.B == 0 or (np.sign(self.B) == -sign) or (np.random.rand() < np.exp(-2*sign*self.B*np.sum(cluster))):
                 self.state[cluster == 1] *= -1
                 self.__energy()
                 self.M -= 2*np.sum(cluster)*sign
