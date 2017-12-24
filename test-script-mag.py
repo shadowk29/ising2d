@@ -6,10 +6,10 @@ import itertools
 
 def main():
     temperatures = [2.0/np.log(1+np.sqrt(2))]
-    fields= [0]
-    sizes = [128, 91, 64, 45, 32, 23, 16, 11, 8]
+    fields= np.array([10**n for n in np.linspace(-8, -4, 9)])
+    sizes = [128]
     microstates = 10000
-    magnet = ising2d(temperatures, fields, sizes, microstates, algorithm = 'wolff', output_folder = 'output', verbose=True)
+    magnet = ising2d(temperatures, fields, sizes, microstates, algorithm = 'wolff', output_folder = 'B_output', verbose=True)
     magnet.run()
 
 if __name__=='__main__':
