@@ -7,9 +7,9 @@ import itertools
 def main():
     temperatures = [2.0/np.log(1+np.sqrt(2))]
     fields= [0]
-    sizes = [128, 91, 64, 45, 32, 23, 16, 11, 8]
-    microstates = 10000
-    magnet = ising2d(temperatures, fields, sizes, microstates, algorithm = 'wolff', output_folder = 'output', verbose=True)
+    sizes = [32]
+    microstates = 1000
+    magnet = ising2d(temperatures, fields, sizes, microstates, algorithm = 'wolff', output_folder = 'output_test')
     magnet.run()
 
 if __name__=='__main__':
