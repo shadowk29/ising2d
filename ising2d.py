@@ -10,6 +10,7 @@ class ising2d():
     def __init__(self, temperatures, fields, sizes, microstates, algorithm='metropolis', output_folder='.'):
         self.algorithm = algorithm
         self.observables = []
+        self.correlations = []
         self.output_folder = output_folder
         self.temperatures = temperatures
         self.fields = fields
@@ -40,7 +41,9 @@ class ising2d():
             self.correlation_length /= float(self.microstates)
             self._fit_correlation_length()
             self._print_correlation_length()
+            self._save_correlations()
         self._print_observables()
+        self._print_correlations()
 
     ##private internal utility functions
     
@@ -216,7 +219,7 @@ class ising2d():
         else:
             popt, pcov = curve_fit(self._offset_exponential, x[1:], self.correlation_length[1:], p0=p0)
             self.corrlength = popt[0]
-            print popt, np.sqrt(np.diag(pcov))
+            self.eta = popt[2]
 
     def _energy_evolution(self):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
@@ -243,6 +246,10 @@ class ising2d():
         row = {'L': self.L, 'N': self.N, 'T': self.T, 'B': self.B, 'E': self.E, 'M': self.M}
         self.observables.append(row)
 
+    def save_correlations(self):
+        row = {'L': self.L, 'N': self.N, 'T': self.T, 'B': self.B, 'correlation_time': self.corrtime, 'correlation_length': self.corrlength, 'eta': self.eta}
+        self.correlations.append(row)
+
        
     def _print_energy_evolution(self):
         """ Save the time evolution of the energy to a csv file """
@@ -250,7 +257,11 @@ class ising2d():
 
     def _print_observables(self):
         """ Save all of the generated observables in a csv file """
-        pd.DataFrame(self.observables).to_csv(self.output_folder + '/observables.csv'.format(self.T,self.B,self.L), sep=',', index=False)
+        pd.DataFrame(self.observables).to_csv(self.output_folder + '/observables.csv', sep=',', index=False)
+
+    def _print_correlations(self):
+        """ Save all of the generated observables in a csv file """
+        pd.DataFrame(self.correlations).to_csv(self.output_folder + '/correlations.csv', sep=',', index=False)
 
     def _print_autocorrelation(self):
         """ Save the autocorrelation function in a csv file """
