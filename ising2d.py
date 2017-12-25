@@ -240,7 +240,6 @@ class ising2d():
             
     def _save_observables(self):
         """ Add a row of observables to the list of saved microstates """
-        self._correlation_length()
         row = {'L': self.L, 'N': self.N, 'T': self.T, 'B': self.B, 'E': self.E, 'M': self.M}
         self.observables.append(row)
 
