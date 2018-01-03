@@ -5,6 +5,7 @@ from scipy.fftpack import fft, ifft, ifftshift
 from scipy.optimize import curve_fit
 from tqdm import tqdm
 import itertools
+from collections import deque
 
 class ising2d():
     def __init__(self, temperatures, fields, sizes, microstates, algorithm='metropolis', output_folder='.'):
@@ -49,11 +50,16 @@ class ising2d():
     
     def _thermalize(self):
         """ Perform enough spin flip operations that the system reaches thermal equilibrium """
+        self.zerocount = 0
+        self.thermalsteps = 0
         if self.algorithm == 'metropolis':
-            steps = 100*self.N**2
+            steps = self.N**2
         else:
-            steps = np.maximum(self.N/10, 1000)
-        self._spinflip(steps, label='Thermalizing')
+            steps = self.N/10
+        while self.zerocount < 20:
+            print self.zerocount
+            self._spinflip(steps, label='Thermalizing')
+            self.thermalsteps += steps
         
     def _update_system(self, L, T, B):
         """ set a new ensemble and equilibrate it """
@@ -127,6 +133,8 @@ class ising2d():
 
     def _wolff(self, steps, save, label):
         """ perform a spin cluster update step using the Wolff algorithm """
+        if label=='Thermalizing':
+            self.energy_sign = deque()
         if save:
             self.energy_evolution = np.zeros(steps)
         if label is not None:
@@ -135,12 +143,27 @@ class ising2d():
             iterator = range(steps)
         for k in iterator:
             cluster, sign = self._build_cluster(self.probability)
+            oldE = self.E
             if self.B == 0 or (np.sign(self.B) == -sign) or (np.random.rand() < np.exp(-2*sign*self.B*np.sum(cluster))):
                 self.state[cluster == 1] *= -1
                 self._energy()
                 self.M -= 2*np.sum(cluster)*sign
+            dE = oldE - self.E
             if save:
                 self.energy_evolution[k] = self.E
+            if label=='Thermalizing':
+                added = False
+                if dE != 0:
+                    self.energy_sign.append(np.sign(dE))
+                    added = True
+                if len(self.energy_sign) > 50:
+                    self.energy_sign.popleft()
+                if np.sum(self.energy_sign) == 0 and len(self.energy_sign) == 50 and added==True:
+                    added = False
+                    self.zerocount += 1
+                if self.zerocount == 20:
+                    break
+                    
             
 
     def _build_cluster(self, prob, seed=None):
@@ -223,10 +246,7 @@ class ising2d():
 
     def _energy_evolution(self):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
-        if self.algorithm == 'metropolis':
-            self._spinflip(50*self.N**2, save=True, label='Correlation time')
-        elif self.algorithm == 'wolff':
-            self._spinflip(np.maximum(1000, self.N/2), save=True, label='Correlation time')
+        self._spinflip(np.maximum(1000, 2*self.thermalsteps), save=True, label='Correlation time')
 
     def _probability(self):
         """ pre-define the spin-flip/cluster addition probabilities """
