@@ -273,29 +273,33 @@ class ising2d():
         self.autocorrelation = (np.real(R)[:n//2]/(np.arange(n//2)[::-1]+n//2))[:maxdelay]
 
     def _correlation_length(self):
-        maxlength = self.L/2
-        mean = np.average(self.state)
-        std = np.std(self.state)
-        correlation = np.zeros(maxlength, dtype=np.float64)
-        samples = np.zeros(maxlength, dtype=np.float64)
-        for i in range(self.L):
-            for j in range(self.L):
-                for k in range(maxlength):
-                    correlation[k] += (self.state[i,j]-mean)/std * ((self.state[i, (j-k)%self.L]-mean) + (self.state[i, (j+k)%self.L]-mean) + (self.state[(i+k)%self.L, j]-mean) + (self.state[(i-k)%self.L, j]-mean))/std
-                    samples[k] += 4
-        correlation /= samples
-        self.correlation_length += correlation
+        pass
+##        maxlength = self.L/2
+##        mean = np.average(self.state)
+##        std = np.std(self.state)
+##        correlation = np.zeros(maxlength, dtype=np.float64)
+##        samples = np.zeros(maxlength, dtype=np.float64)
+##        for i in range(self.L):
+##            for j in range(self.L):
+##                for k in range(maxlength):
+##                    correlation[k] += (self.state[i,j]-mean)/std * ((self.state[i, (j-k)%self.L]-mean) + (self.state[i, (j+k)%self.L]-mean) + (self.state[(i+k)%self.L, j]-mean) + (self.state[(i-k)%self.L, j]-mean))/std
+##                    samples[k] += 4
+##        correlation /= samples
+##        self.correlation_length += correlation
 
     def _fit_correlation_length(self):
-        p0 = [5, 1, 0.25]
-        x = np.arange(len(self.correlation_length))
-        if self.T < 2/np.log(1+np.sqrt(2)):
-            self.corrlength = 0
-            self.eta = 0
-        else:
-            popt, pcov = curve_fit(self._offset_exponential, x[1:], self.correlation_length[1:], p0=p0)
-            self.corrlength = popt[0]
-            self.eta = popt[2]
+        self.corrlength = 0
+        self.eta = 0
+        
+##        p0 = [5, 1, 0.25]
+##        x = np.arange(len(self.correlation_length))
+##        if self.T < 2/np.log(1+np.sqrt(2)):
+##            self.corrlength = 0
+##            self.eta = 0
+##        else:
+##            popt, pcov = curve_fit(self._offset_exponential, x[1:], self.correlation_length[1:], p0=p0)
+##            self.corrlength = popt[0]
+##            self.eta = popt[2]
 
     def _energy_evolution(self):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
@@ -325,12 +329,18 @@ class ising2d():
 
     def _save_state(self):
         """ Save the time evolution of the energy to a csv file """
-        np.savetxt(self.output_folder + '/state_T={0:.6g}_B={1:.6g}_L{2}_{3}.csv'.format(self.T,self.B,self.L, self.saved_states), self.state, delimiter=',')
+        np.savetxt(self.output_folder + '/state_T={0:.6g}_B={1:.6g}_L={2}_{3}.csv'.format(self.T,self.B,self.L, self.saved_states), self.state, delimiter=',')
+        pl.imshow(self.state, interpolation='none')
+        pl.xlabel('X Spin Index')
+        pl.ylabel('Y Spin Index')
+        pl.title('T={0:.6g} B={1:.6g} L={2}'.format(self.T,self.B,self.L))
+        pl.savefig(self.output_folder + '/state_T={0:.6g}_B={1:.6g}_L={2}_{3}.png'.format(self.T,self.B,self.L, self.saved_states))
+        pl.close('all')
         self.saved_states += 1
        
     def _print_energy_evolution(self):
         """ Save the time evolution of the energy to a csv file """
-        np.savetxt(self.output_folder + '/energy_evolution_T={0:.6g}_B={1:.6g}_L{2}.csv'.format(self.T,self.B,self.L), self.energy_evolution, delimiter=',')
+        np.savetxt(self.output_folder + '/energy_evolution_T={0:.6g}_B={1:.6g}_L={2}.csv'.format(self.T,self.B,self.L), self.energy_evolution, delimiter=',')
 
     def _print_observables(self):
         """ Save all of the generated observables in a csv file """
@@ -342,7 +352,7 @@ class ising2d():
 
     def _print_autocorrelation(self):
         """ Save the autocorrelation function in a csv file """
-        np.savetxt(self.output_folder + '/autocorrelation_T={0:.6g}_B={1:.6g}_L{2}.csv'.format(self.T,self.B,self.L), self.autocorrelation, delimiter=',')
+        np.savetxt(self.output_folder + '/autocorrelation_T={0:.6g}_B={1:.6g}_L={2}.csv'.format(self.T,self.B,self.L), self.autocorrelation, delimiter=',')
 
     def _print_correlation_length(self):
         """ Save the autocorrelation function in a csv file """
