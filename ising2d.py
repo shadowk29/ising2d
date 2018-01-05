@@ -17,6 +17,8 @@ class ising2d():
         self.fields = fields
         self.sizes = sizes
         self.microstates = microstates
+        self.eqbm_window = 50
+        self.eqbm_zerocount = 20
 
         if any(np.array(temperatures) < 1):
             raise ValueError('The Monte Carlo method cannot be reliably used for T < 1')
@@ -55,10 +57,9 @@ class ising2d():
         if self.algorithm == 'metropolis':
             steps = self.N**2
         else:
-            steps = self.N/10
+            steps = np.maximum(self.N/10, 500)
         while self.zerocount < 20:
-            print self.zerocount
-            self._spinflip(steps, label='Thermalizing')
+            self._spinflip(steps, mode='Thermalize')
             self.thermalsteps += steps
         
     def _update_system(self, L, T, B):
@@ -80,7 +81,7 @@ class ising2d():
     
     def _update_microstate(self):
         """ Flip spins until the energy correlations are gone and an independent configuration is generated """
-        self._spinflip(5*int(self.corrtime+1))
+        self._spinflip(5*int(self.corrtime+1), mode = 'Production')
         self._save_observables()
 
     def _correlation_time(self):
@@ -96,17 +97,31 @@ class ising2d():
         popt, pcov = curve_fit(self._exponential, self.delays, self.autocorrelation, p0=p0)
         self.corrtime = popt[0]
             
-    def _spinflip(self, steps, save=False, label=None):
+    def _spinflip(self, steps, mode=None):
         """ perform a single spin update step using the given algorithm """
         if self.algorithm == 'metropolis':
-            self._metropolis(steps, save, label)
+            self._metropolis(steps, mode)
         elif self.algorithm == 'wolff':
-            self._wolff(steps, save, label)
+            self._wolff(steps, mode)
         else:
             raise NotImplementedError('The {0} algorithm is not supported'.format(self.algorithm))
 
-    def _metropolis(self, steps, save, label):
+    def _metropolis(self, steps, mode):
         """ perform spin update steps using the Metropolis algorithm """
+
+        label = mode
+        if mode == 'Thermalize':
+            save = False
+        elif mode == 'Autocorrelation':
+            save = True
+        elif mode == 'Production':
+            save = False
+            label = None
+        else:
+            raise NotImplementedError('{0} is not a valid mode'.format(mode))
+        
+
+        
         if save:
             self.energy_evolution = np.zeros(steps)
         spins = np.random.randint(0, self.L, size=(steps, 2))
@@ -131,14 +146,28 @@ class ising2d():
                 self.energy_evolution[step] = self.E
                 step += 1
 
-    def _wolff(self, steps, save, label):
+    def _wolff(self, steps, mode):
         """ perform a spin cluster update step using the Wolff algorithm """
-        if label=='Thermalizing':
+        label = mode
+        if mode == 'Thermalize':
+            save = False
+        elif mode == 'Autocorrelation':
+            save = True
+        elif mode == 'Production':
+            save = False
+            label=None
+        else:
+            raise NotImplementedError('{0} is not a valid mode'.format(mode))
+        
+
+        
+        if mode=='Thermalize':
             self.energy_sign = deque()
         if save:
             self.energy_evolution = np.zeros(steps)
-        if label is not None:
-            iterator = tqdm(range(steps), desc = label)
+            
+        if label:
+            iterator = tqdm(range(steps), desc=label)
         else:
             iterator = range(steps)
         for k in iterator:
@@ -151,17 +180,17 @@ class ising2d():
             dE = oldE - self.E
             if save:
                 self.energy_evolution[k] = self.E
-            if label=='Thermalizing':
+            if mode=='Thermalize':
                 added = False
                 if dE != 0:
                     self.energy_sign.append(np.sign(dE))
                     added = True
-                if len(self.energy_sign) > 50:
+                if len(self.energy_sign) > self.eqbm_window:
                     self.energy_sign.popleft()
-                if np.sum(self.energy_sign) == 0 and len(self.energy_sign) == 50 and added==True:
+                if np.sum(self.energy_sign) == 0 and len(self.energy_sign) == self.eqbm_window and added==True:
                     added = False
                     self.zerocount += 1
-                if self.zerocount == 20:
+                if self.zerocount == self.eqbm_zerocount:
                     break
                     
             
@@ -235,10 +264,12 @@ class ising2d():
         self.correlation_length += correlation
 
     def _fit_correlation_length(self):
+        print 'hi'
         p0 = [5, 1, 0.25]
         x = np.arange(len(self.correlation_length))
         if self.T < 2/np.log(1+np.sqrt(2)):
             self.corrlength = 0
+            self.eta = 0
         else:
             popt, pcov = curve_fit(self._offset_exponential, x[1:], self.correlation_length[1:], p0=p0)
             self.corrlength = popt[0]
@@ -246,7 +277,7 @@ class ising2d():
 
     def _energy_evolution(self):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
-        self._spinflip(np.maximum(1000, 2*self.thermalsteps), save=True, label='Correlation time')
+        self._spinflip(np.maximum(1000, 2*self.thermalsteps), mode='Autocorrelation')
 
     def _probability(self):
         """ pre-define the spin-flip/cluster addition probabilities """
