@@ -10,7 +10,7 @@ def main():
     fields= [0]
     sizes = [8, 16, 32, 64, 128]
     microstates = 1000
-    magnet = ising2d(temperatures, fields, sizes, microstates, algorithm = 'wolff', output_folder = 'output_test', save_states=0)
+    magnet = ising2d(temperatures, fields, sizes, microstates, algorithm = 'wolff', output_folder = 'newdir', save_states=0)
     magnet.run()
 
 if __name__=='__main__':
