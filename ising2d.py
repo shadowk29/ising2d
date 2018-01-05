@@ -8,7 +8,7 @@ import itertools
 from collections import deque
 
 class ising2d():
-    def __init__(self, temperatures, fields, sizes, microstates, algorithm='metropolis', output_folder='.'):
+    def __init__(self, temperatures, fields, sizes, microstates, algorithm='metropolis', output_folder='.', save_states = 0):
         self.algorithm = algorithm
         self.observables = []
         self.correlations = []
@@ -16,9 +16,16 @@ class ising2d():
         self.temperatures = temperatures
         self.fields = fields
         self.sizes = sizes
+        if algorithm == 'wolff':
+            self.eqbm_window = 50
+            self.eqbm_zerocount = 20
+        elif algorithm == 'metropolis':
+            self.eqbm_window = 500
+            self.eqbm_zerocount = 200
         self.microstates = microstates
-        self.eqbm_window = 50
-        self.eqbm_zerocount = 20
+        self.save_states = save_states
+        self.saved_states = 0
+        
 
         if any(np.array(temperatures) < 1):
             raise ValueError('The Monte Carlo method cannot be reliably used for T < 1')
@@ -40,6 +47,8 @@ class ising2d():
             self._print_autocorrelation()
             for k in tqdm(range(self.microstates), desc = 'Production'):
                 self._update_microstate()
+                if self.saved_states < self.save_states:
+                    self._save_state()
                 self._correlation_length()
             self.correlation_length /= float(self.microstates)
             self._fit_correlation_length()
@@ -58,7 +67,7 @@ class ising2d():
             steps = self.N**2
         else:
             steps = np.maximum(self.N/10, 500)
-        while self.zerocount < 20:
+        while self.zerocount < self.eqbm_zerocount:
             self._spinflip(steps, mode='Thermalize')
             self.thermalsteps += steps
         
@@ -69,10 +78,12 @@ class ising2d():
         self.L = L
         self.N = L**2
         self.state = np.random.choice([-1,1], size=(L,L))
+        self.state = self.state.astype(np.int64)
         self.corrtime = None
         self.energy_evolution = None
         self.autocorrelation = None
         self.delays = None
+        self.saved_states = 0
         self._energy()
         self._magnetization()
         self._probability()
@@ -120,8 +131,8 @@ class ising2d():
         else:
             raise NotImplementedError('{0} is not a valid mode'.format(mode))
         
-
-        
+        if mode=='Thermalize':
+            self.energy_sign = deque()
         if save:
             self.energy_evolution = np.zeros(steps)
         spins = np.random.randint(0, self.L, size=(steps, 2))
@@ -138,13 +149,26 @@ class ising2d():
             neighbours = np.array([self.state[i, (j+1)%self.L], self.state[i, j-1], self.state[(i+1)%self.L, j], self.state[i-1, j]],dtype=np.int64)
             upneighbours = np.sum((neighbours+1)//2)
             p = self.probability[ss, upneighbours]
+            flipped = False
             if p >= 1 or np.random.rand() < p:
                 self.state[i,j] *= -1
                 self.E += self.energytable[ss, upneighbours]
                 self.M += 2*self.state[i,j]
+                flipped = True
             if save:
                 self.energy_evolution[step] = self.E
                 step += 1
+            if mode=='Thermalize':
+                added = False
+                if flipped:
+                    self.energy_sign.append(np.sign(self.energytable[ss, upneighbours]))
+                    added = True
+                if len(self.energy_sign) > self.eqbm_window:
+                    self.energy_sign.popleft()
+                if np.sum(self.energy_sign) == 0 and len(self.energy_sign) == self.eqbm_window and added:
+                    self.zerocount += 1
+                if self.zerocount == self.eqbm_zerocount:
+                    break
 
     def _wolff(self, steps, mode):
         """ perform a spin cluster update step using the Wolff algorithm """
@@ -187,8 +211,7 @@ class ising2d():
                     added = True
                 if len(self.energy_sign) > self.eqbm_window:
                     self.energy_sign.popleft()
-                if np.sum(self.energy_sign) == 0 and len(self.energy_sign) == self.eqbm_window and added==True:
-                    added = False
+                if np.sum(self.energy_sign) == 0 and len(self.energy_sign) == self.eqbm_window and added:
                     self.zerocount += 1
                 if self.zerocount == self.eqbm_zerocount:
                     break
@@ -264,7 +287,6 @@ class ising2d():
         self.correlation_length += correlation
 
     def _fit_correlation_length(self):
-        print 'hi'
         p0 = [5, 1, 0.25]
         x = np.arange(len(self.correlation_length))
         if self.T < 2/np.log(1+np.sqrt(2)):
@@ -301,6 +323,10 @@ class ising2d():
         row = {'L': self.L, 'N': self.N, 'T': self.T, 'B': self.B, 'correlation_time': self.corrtime, 'correlation_length': self.corrlength, 'eta': self.eta}
         self.correlations.append(row)
 
+    def _save_state(self):
+        """ Save the time evolution of the energy to a csv file """
+        np.savetxt(self.output_folder + '/state_T={0:.6g}_B={1:.6g}_L{2}_{3}.csv'.format(self.T,self.B,self.L, self.saved_states), self.state, delimiter=',')
+        self.saved_states += 1
        
     def _print_energy_evolution(self):
         """ Save the time evolution of the energy to a csv file """
