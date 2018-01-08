@@ -349,7 +349,7 @@ class ising2d():
        
     def _print_energy_evolution(self):
         """ Save the time evolution of the energy to a csv file """
-        np.savetxt(self.output_folder + '/energy_evolution_T={0:.6g}_B={1:.6g}_L={2}.csv'.format(self.T,self.B,self.L), self.energy_evolution, delimiter=',')
+        np.savetxt(self.output_folder + '/correlations/energy_evolution_T={0:.6g}_B={1:.6g}_L={2}.csv'.format(self.T,self.B,self.L), self.energy_evolution, delimiter=',')
 
     def _print_observables(self):
         """ Save all of the generated observables in a csv file """
