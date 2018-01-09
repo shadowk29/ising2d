@@ -10,7 +10,7 @@ from collections import deque
 import os
 
 class ising2d():
-    def __init__(self, temperatures, fields, sizes, microstates, algorithm='metropolis', output_folder='.', save_states = 0):
+    def __init__(self, temperatures, fields, sizes, microstates, algorithm='metropolis', output_folder='.', save_states = 0, checkpoint = 100):
         self.algorithm = algorithm
         self.output_folder = output_folder
         self.temperatures = temperatures
@@ -27,6 +27,8 @@ class ising2d():
         self.saved_states = 0
         self.first_save_observables = True
         self.first_save_correlations = True
+        self.checkpoint = checkpoint
+        self.observables = []
         
 
         if any(np.array(temperatures) < 1):
@@ -57,6 +59,7 @@ class ising2d():
             self._print_autocorrelation()
             for k in tqdm(range(self.microstates), desc = 'Production'):
                 self._update_microstate()
+                self._print_observables(k)
                 if self.saved_states < self.save_states:
                     self._save_state()
                 self._correlation_length()
@@ -103,7 +106,6 @@ class ising2d():
     def _update_microstate(self):
         """ Flip spins until the energy correlations are gone and an independent configuration is generated """
         self._spinflip(5*int(self.corrtime+1), mode = 'Production')
-        self._print_observables()
 
     def _correlation_time(self):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
@@ -328,15 +330,18 @@ class ising2d():
         else:
             raise NotImplementedError('The {0} algorithm is not supported'.format(self.algorithm))
             
-    def _print_observables(self):
+    def _print_observables(self, num):
         """ Add a row of observables to the list of saved microstates """
         row = {'L': self.L, 'N': self.N, 'T': self.T, 'B': self.B, 'E': self.E, 'M': self.M}
-        if self.first_save_observables:
-            pd.DataFrame(row, index=[0]).to_csv(self.output_folder + '/observables.csv', sep=',', index=False)
-            self.first_save_observables = False
-        else:
-            with open(self.output_folder + '/observables.csv','a') as f:
-                pd.DataFrame(row, index=[0]).to_csv(f, sep=',', index=False, header=False)
+        self.observables.append(row)
+        if num % self.checkpoint == 0:
+            if self.first_save_observables:
+                pd.DataFrame(self.observables, index=[0]).to_csv(self.output_folder + '/observables.csv', sep=',', index=False)
+                self.first_save_observables = False
+            else:
+                with open(self.output_folder + '/observables.csv','a') as f:
+                    pd.DataFrame(self.observables).to_csv(f, sep=',', index=False, header=False)
+            self.observables = []
 
     def _print_correlations(self):
         row = {'L': self.L, 'N': self.N, 'T': self.T, 'B': self.B, 'correlation_time': self.corrtime, 'correlation_length': self.corrlength, 'eta': self.eta}
