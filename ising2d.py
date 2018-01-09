@@ -12,8 +12,6 @@ import os
 class ising2d():
     def __init__(self, temperatures, fields, sizes, microstates, algorithm='metropolis', output_folder='.', save_states = 0):
         self.algorithm = algorithm
-        self.observables = []
-        self.correlations = []
         self.output_folder = output_folder
         self.temperatures = temperatures
         self.fields = fields
@@ -27,6 +25,8 @@ class ising2d():
         self.microstates = microstates
         self.save_states = save_states
         self.saved_states = 0
+        self.first_save_observables = True
+        self.first_save_correlations = True
         
 
         if any(np.array(temperatures) < 1):
@@ -63,7 +63,7 @@ class ising2d():
             self.correlation_length /= float(self.microstates)
             self._fit_correlation_length()
             self._print_correlation_length()
-            self._save_correlations()
+            self._print_correlations()
         self._print_observables()
         self._print_correlations()
 
@@ -103,7 +103,7 @@ class ising2d():
     def _update_microstate(self):
         """ Flip spins until the energy correlations are gone and an independent configuration is generated """
         self._spinflip(5*int(self.corrtime+1), mode = 'Production')
-        self._save_observables()
+        self._print_observables()
 
     def _correlation_time(self):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
@@ -328,14 +328,23 @@ class ising2d():
         else:
             raise NotImplementedError('The {0} algorithm is not supported'.format(self.algorithm))
             
-    def _save_observables(self):
+    def _print_observables(self):
         """ Add a row of observables to the list of saved microstates """
         row = {'L': self.L, 'N': self.N, 'T': self.T, 'B': self.B, 'E': self.E, 'M': self.M}
-        self.observables.append(row)
+        if self.first_save_observables:
+            pd.DataFrame(row, index=[0]).to_csv(self.output_folder + '/observables.csv', sep=',', index=False)
+            self.first_save_observables = False
+        else:
+            with open(self.output_folder + '/observables.csv','a') as f:
+                pd.DataFrame(row, index=[0]).to_csv(f, sep=',', index=False, header=False)
 
-    def _save_correlations(self):
+    def _print_correlations(self):
         row = {'L': self.L, 'N': self.N, 'T': self.T, 'B': self.B, 'correlation_time': self.corrtime, 'correlation_length': self.corrlength, 'eta': self.eta}
-        self.correlations.append(row)
+        if self.first_save_correlations:
+            pd.DataFrame(row, index=[0]).to_csv(self.output_folder + '/correlations.csv', sep=',', index=False)
+        else:
+            with open(self.output_folder + '/correlations.csv','a') as f:
+                pd.DataFrame(row, index=[0]).to_csv(f, sep=',', index=False, header=False)
 
     def _save_state(self):
         """ Save the time evolution of the energy to a csv file """
@@ -352,13 +361,6 @@ class ising2d():
         """ Save the time evolution of the energy to a csv file """
         np.savetxt(self.output_folder + '/correlations/energy_evolution_T={0:.6g}_B={1:.6g}_L={2}.csv'.format(self.T,self.B,self.L), self.energy_evolution, delimiter=',')
 
-    def _print_observables(self):
-        """ Save all of the generated observables in a csv file """
-        pd.DataFrame(self.observables).to_csv(self.output_folder + '/observables.csv', sep=',', index=False)
-
-    def _print_correlations(self):
-        """ Save all of the generated observables in a csv file """
-        pd.DataFrame(self.correlations).to_csv(self.output_folder + '/correlations.csv', sep=',', index=False)
 
     def _print_autocorrelation(self):
         """ Save the autocorrelation function in a csv file """
