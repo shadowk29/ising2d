@@ -6,6 +6,7 @@ import itertools
 
 def main():
     tau = -np.array([10**n for n in np.linspace(-6, -2, 8)])
+    tau = np.append(tau, 0)
     temperatures = 2/np.log(1+np.sqrt(2))*(1+tau)
     fields= [0]
     sizes = [8, 16, 32, 64, 128]

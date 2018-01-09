@@ -4,6 +4,7 @@ import pandas as pd
 from scipy.fftpack import fft, ifft, ifftshift
 from scipy.optimize import curve_fit
 from tqdm import tqdm
+tqdm.monitor_interval = 0
 import itertools
 from collections import deque
 import os
