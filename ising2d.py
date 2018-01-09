@@ -10,7 +10,7 @@ from collections import deque
 import os
 
 class ising2d():
-    def __init__(self, temperatures, fields, sizes, microstates, algorithm='metropolis', output_folder='.', save_states = 0, checkpoint = 100):
+    def __init__(self, temperatures, fields, sizes, microstates, algorithm='wolff', output_folder='.', save_states = 0, checkpoint = 100, debug = False):
         self.algorithm = algorithm
         self.output_folder = output_folder
         self.temperatures = temperatures
@@ -29,6 +29,7 @@ class ising2d():
         self.first_save_correlations = True
         self.checkpoint = checkpoint
         self.observables = []
+        self.debug = debug
         
 
         if any(np.array(temperatures) < 1):
@@ -36,7 +37,11 @@ class ising2d():
         if any(np.absolute(fields) > 0.1) and algorithm == 'wolff':
             raise ValueError('The Wolff Algorithm performs poorly for B > 0.1, consider using a smaller field or use Metropolis if a large field is needed')
 
-        paths = [output_folder, output_folder+'/states', output_folder+'/correlations']
+        paths = [output_folder]
+        if self.save_states > 0:
+            paths.append(output_folder+'/states')
+        if self.debug:
+            paths.append(output_folder+'/correlations')
         for path in paths:
             try: 
                 os.makedirs(path)
@@ -54,18 +59,14 @@ class ising2d():
             B = ensemble[2]
             pbar.set_description('(L,T,B) = ({0}, {1:.3g}, {2:.3g})'.format(L,T,B))
             self._update_system(L,T,B)
-            self.correlation_length = np.zeros(self.L/2)
-            self._print_energy_evolution()
-            self._print_autocorrelation()
+            if self.debug:
+                self._print_energy_evolution()
+                self._print_autocorrelation()
             for k in tqdm(range(self.microstates), desc = 'Production'):
                 self._update_microstate()
                 self._print_observables(k)
                 if self.saved_states < self.save_states:
                     self._save_state()
-                self._correlation_length()
-            self.correlation_length /= float(self.microstates)
-            self._fit_correlation_length()
-            self._print_correlation_length()
             self._print_correlations()
         self._print_observables()
         self._print_correlations()
@@ -284,35 +285,6 @@ class ising2d():
         R = ifft(S)
         self.autocorrelation = (np.real(R)[:n//2]/(np.arange(n//2)[::-1]+n//2))[:maxdelay]
 
-    def _correlation_length(self):
-        pass
-##        maxlength = self.L/2
-##        mean = np.average(self.state)
-##        std = np.std(self.state)
-##        correlation = np.zeros(maxlength, dtype=np.float64)
-##        samples = np.zeros(maxlength, dtype=np.float64)
-##        for i in range(self.L):
-##            for j in range(self.L):
-##                for k in range(maxlength):
-##                    correlation[k] += (self.state[i,j]-mean)/std * ((self.state[i, (j-k)%self.L]-mean) + (self.state[i, (j+k)%self.L]-mean) + (self.state[(i+k)%self.L, j]-mean) + (self.state[(i-k)%self.L, j]-mean))/std
-##                    samples[k] += 4
-##        correlation /= samples
-##        self.correlation_length += correlation
-
-    def _fit_correlation_length(self):
-        self.corrlength = 0
-        self.eta = 0
-        
-##        p0 = [5, 1, 0.25]
-##        x = np.arange(len(self.correlation_length))
-##        if self.T < 2/np.log(1+np.sqrt(2)):
-##            self.corrlength = 0
-##            self.eta = 0
-##        else:
-##            popt, pcov = curve_fit(self._offset_exponential, x[1:], self.correlation_length[1:], p0=p0)
-##            self.corrlength = popt[0]
-##            self.eta = popt[2]
-
     def _energy_evolution(self):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
         self._spinflip(np.maximum(1000, 2*self.thermalsteps), mode='Autocorrelation')
@@ -344,7 +316,7 @@ class ising2d():
             self.observables = []
 
     def _print_correlations(self):
-        row = {'L': self.L, 'N': self.N, 'T': self.T, 'B': self.B, 'correlation_time': self.corrtime, 'correlation_length': self.corrlength, 'eta': self.eta}
+        row = {'L': self.L, 'N': self.N, 'T': self.T, 'B': self.B, 'correlation_time': self.corrtime}
         if self.first_save_correlations:
             pd.DataFrame(row, index=[0]).to_csv(self.output_folder + '/correlations.csv', sep=',', index=False)
         else:
@@ -366,13 +338,7 @@ class ising2d():
         """ Save the time evolution of the energy to a csv file """
         np.savetxt(self.output_folder + '/correlations/energy_evolution_T={0:.6g}_B={1:.6g}_L={2}.csv'.format(self.T,self.B,self.L), self.energy_evolution, delimiter=',')
 
-
     def _print_autocorrelation(self):
         """ Save the autocorrelation function in a csv file """
         np.savetxt(self.output_folder + '/correlations/autocorrelation_T={0:.6g}_B={1:.6g}_L={2}.csv'.format(self.T,self.B,self.L), self.autocorrelation, delimiter=',')
-
-    def _print_correlation_length(self):
-        """ Save the autocorrelation function in a csv file """
-        np.savetxt(self.output_folder + '/correlations/correlation_length_T={0:.6g}_B={1:.6g}_L{2}.csv'.format(self.T,self.B,self.L), self.correlation_length, delimiter=',')
-
 
