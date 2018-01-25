@@ -10,18 +10,13 @@ from collections import deque
 import os
 
 class ising2d():
-    def __init__(self, temperatures, fields, sizes, microstates, algorithm='wolff', output_folder='.', save_states = 0, checkpoint = 100, debug = False):
-        self.algorithm = algorithm
+    def __init__(self, temperatures, fields, sizes, microstates, output_folder='.', save_states = 0, checkpoint = 100, debug = False):
         self.output_folder = output_folder
         self.temperatures = temperatures
         self.fields = fields
         self.sizes = sizes
-        if algorithm == 'wolff':
-            self.eqbm_window = 50
-            self.eqbm_zerocount = 20
-        elif algorithm == 'metropolis':
-            self.eqbm_window = 500
-            self.eqbm_zerocount = 200
+        self.eqbm_window = 50
+        self.eqbm_zerocount = 20
         self.microstates = microstates
         self.save_states = save_states
         self.saved_states = 0
@@ -34,8 +29,8 @@ class ising2d():
 
         if any(np.array(temperatures) < 1):
             raise ValueError('The Monte Carlo method cannot be reliably used for T < 1')
-        if any(np.absolute(fields) > 0.1) and algorithm == 'wolff':
-            raise ValueError('The Wolff Algorithm performs poorly for B > 0.1, consider using a smaller field or use Metropolis if a large field is needed')
+        if any(np.absolute(fields) > 0.1):
+            raise ValueError('The Wolff Algorithm performs poorly for B > 0.1')
 
         paths = [output_folder]
         if self.save_states > 0:
@@ -77,10 +72,7 @@ class ising2d():
         """ Perform enough spin flip operations that the system reaches thermal equilibrium """
         self.zerocount = 0
         self.thermalsteps = 0
-        if self.algorithm == 'metropolis':
-            steps = self.N**2
-        else:
-            steps = np.maximum(self.N/10, 500)
+        steps = np.maximum(self.N/10, 500)
         while self.zerocount < self.eqbm_zerocount:
             self._spinflip(steps, mode='Thermalize')
             self.thermalsteps += steps
@@ -113,75 +105,14 @@ class ising2d():
         self._energy_evolution()
         self._autocorrelation()
         self.delays = np.arange(len(self.autocorrelation))
-        if self.algorithm == 'metropolis':
-            default = self.N
-        else:
-            default = 3
+        default = 3
         p0 = [next((i for i in self.delays if self.autocorrelation[i] < 0), default)/3.0]
         popt, pcov = curve_fit(self._exponential, self.delays, self.autocorrelation, p0=p0)
         self.corrtime = popt[0]
             
     def _spinflip(self, steps, mode=None):
         """ perform a single spin update step using the given algorithm """
-        if self.algorithm == 'metropolis':
-            self._metropolis(steps, mode)
-        elif self.algorithm == 'wolff':
-            self._wolff(steps, mode)
-        else:
-            raise NotImplementedError('The {0} algorithm is not supported'.format(self.algorithm))
-
-    def _metropolis(self, steps, mode):
-        """ perform spin update steps using the Metropolis algorithm """
-
-        label = mode
-        if mode == 'Thermalize':
-            save = False
-        elif mode == 'Autocorrelation':
-            save = True
-        elif mode == 'Production':
-            save = False
-            label = None
-        else:
-            raise NotImplementedError('{0} is not a valid mode'.format(mode))
-        
-        if mode=='Thermalize':
-            self.energy_sign = deque()
-        if save:
-            self.energy_evolution = np.zeros(steps)
-        spins = np.random.randint(0, self.L, size=(steps, 2))
-        if label is not None:
-            iterator = tqdm(spins, desc = label)
-        else:
-            iterator = spins
-        step = 0
-        for spin in iterator:
-            i = spin[0] % self.L
-            j = spin[1] % self.L
-            s = self.state[i,j]
-            ss = (s+1)//2
-            neighbours = np.array([self.state[i, (j+1)%self.L], self.state[i, j-1], self.state[(i+1)%self.L, j], self.state[i-1, j]],dtype=np.int64)
-            upneighbours = np.sum((neighbours+1)//2)
-            p = self.probability[ss, upneighbours]
-            flipped = False
-            if p >= 1 or np.random.rand() < p:
-                self.state[i,j] *= -1
-                self.E += self.energytable[ss, upneighbours]
-                self.M += 2*self.state[i,j]
-                flipped = True
-            if save:
-                self.energy_evolution[step] = self.E
-                step += 1
-            if mode=='Thermalize':
-                added = False
-                if flipped:
-                    self.energy_sign.append(np.sign(self.energytable[ss, upneighbours]))
-                    added = True
-                if len(self.energy_sign) > self.eqbm_window:
-                    self.energy_sign.popleft()
-                if np.sum(self.energy_sign) == 0 and len(self.energy_sign) == self.eqbm_window and added:
-                    self.zerocount += 1
-                if self.zerocount == self.eqbm_zerocount:
-                    break
+        self._wolff(steps, mode)
 
     def _wolff(self, steps, mode):
         """ perform a spin cluster update step using the Wolff algorithm """
@@ -195,9 +126,7 @@ class ising2d():
             label=None
         else:
             raise NotImplementedError('{0} is not a valid mode'.format(mode))
-        
-
-        
+         
         if mode=='Thermalize':
             self.energy_sign = deque()
         if save:
@@ -229,8 +158,6 @@ class ising2d():
                 if self.zerocount == self.eqbm_zerocount:
                     break
                     
-            
-
     def _build_cluster(self, prob, seed=None):
         """ build a cluster of like-spin nearest neighbours to be flipped all at once"""
         cluster = np.zeros(self.state.shape, dtype=np.int64)
@@ -291,16 +218,7 @@ class ising2d():
 
     def _probability(self):
         """ pre-define the spin-flip/cluster addition probabilities """
-        if self.algorithm == 'metropolis':
-            self.energytable = np.zeros((2,5))
-            for j in range(5):
-                self.energytable[0,j] = 2*(4.0 - 2.0*j - 2*self.B) #spin down, with j neighbours spin up
-                self.energytable[1,j] = 2*(2.0*j - 4.0 + 2*self.B) #spin up, with j neighnours spin up
-            self.probability = np.minimum(1.0, np.exp(-self.energytable/self.T))     
-        elif self.algorithm == 'wolff':
-            self.probability = 1.0 - np.exp(-2.0/self.T)
-        else:
-            raise NotImplementedError('The {0} algorithm is not supported'.format(self.algorithm))
+        self.probability = 1.0 - np.exp(-2.0/self.T)
             
     def _print_observables(self, num):
         """ Add a row of observables to the list of saved microstates """
