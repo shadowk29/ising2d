@@ -319,6 +319,7 @@ class ising2d():
         row = {'L': self.L, 'N': self.N, 'T': self.T, 'B': self.B, 'correlation_time': self.corrtime}
         if self.first_save_correlations:
             pd.DataFrame(row, index=[0]).to_csv(self.output_folder + '/correlations.csv', sep=',', index=False)
+            self.first_save_correlations = False
         else:
             with open(self.output_folder + '/correlations.csv','a') as f:
                 pd.DataFrame(row, index=[0]).to_csv(f, sep=',', index=False, header=False)
