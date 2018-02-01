@@ -59,11 +59,14 @@ class ising2d():
                 self._print_autocorrelation()
             for k in tqdm(range(self.microstates), desc = 'Production'):
                 self._update_microstate()
-                self._print_observables(k)
+                print_index = k
+                if print_index > 0:
+                    print_index += 1
+                self._print_observables(print_index)
                 if self.saved_states < self.save_states:
                     self._save_state()
             self._print_correlations()
-        self._print_observables()
+        self._print_observables(-1)
         self._print_correlations()
 
     ##private internal utility functions
