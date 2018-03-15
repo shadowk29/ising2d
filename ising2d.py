@@ -8,6 +8,7 @@ tqdm.monitor_interval = 0
 import itertools
 from collections import deque
 import os
+import warnings
 
 class ising2d():
     def __init__(self, temperatures, fields, sizes, microstates, output_folder='.', save_states = 0, checkpoint = 100, debug = False):
@@ -22,7 +23,10 @@ class ising2d():
         self.saved_states = 0
         self.first_save_observables = True
         self.first_save_correlations = True
-        self.checkpoint = checkpoint
+        if microstates < checkpoint:
+            self.checkpoint = microstates
+        else:
+            self.checkpoint = checkpoint
         self.observables = []
         self.debug = debug
         
@@ -75,7 +79,7 @@ class ising2d():
         """ Perform enough spin flip operations that the system reaches thermal equilibrium """
         self.zerocount = 0
         self.thermalsteps = 0
-        steps = np.maximum(self.N/10, 500)
+        steps = np.maximum(self.N/10, 1000)
         while self.zerocount < self.eqbm_zerocount:
             self._spinflip(steps, mode='Thermalize')
             self.thermalsteps += steps
@@ -105,13 +109,21 @@ class ising2d():
 
     def _correlation_time(self):
         """ Flip spins and keep track of energy evolution over time to collect correlation data """
-        self._energy_evolution()
-        self._autocorrelation()
-        self.delays = np.arange(len(self.autocorrelation))
-        default = 3
-        p0 = [next((i for i in self.delays if self.autocorrelation[i] < 0), default)/3.0]
-        popt, pcov = curve_fit(self._exponential, self.delays, self.autocorrelation, p0=p0)
-        self.corrtime = popt[0]
+        fitted = False
+        while not fitted:
+            self._energy_evolution()
+            self._autocorrelation()
+            self.delays = np.arange(len(self.autocorrelation))
+            default = 150
+            p0 = [next((i for i in self.delays if self.autocorrelation[i] < 0), default)/3.0]
+            with warnings.catch_warnings():
+                try:
+                    popt, pcov = curve_fit(self._exponential, self.delays, self.autocorrelation, p0=p0)
+                except Warning as e:
+                    self.thermalsteps *= 2
+                else:
+                    fitted  = True
+                    self.corrtime = popt[0]
             
     def _spinflip(self, steps, mode=None):
         """ perform a single spin update step using the given algorithm """
@@ -119,6 +131,7 @@ class ising2d():
 
     def _wolff(self, steps, mode):
         """ perform a spin cluster update step using the Wolff algorithm """
+        steps = int(steps)
         label = mode
         if mode == 'Thermalize':
             save = False
@@ -206,7 +219,7 @@ class ising2d():
     def _autocorrelation(self):
         """ Calculate the autocorrelation of the energy of the system using that fact that the autocorrelation is the Fourier Transform of the PSD """
         energy = self.energy_evolution
-        maxdelay = len(energy)/5
+        maxdelay = int(len(energy)/5)
         xp = ifftshift((energy - np.average(energy))/np.std(energy))
         n = len(xp)
         xp = np.r_[xp[:n//2], np.zeros_like(xp), xp[n//2:]]
