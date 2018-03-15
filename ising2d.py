@@ -9,6 +9,7 @@ import itertools
 from collections import deque
 import os
 import warnings
+warnings.filterwarnings('error')
 
 class ising2d():
     def __init__(self, temperatures, fields, sizes, microstates, output_folder='.', save_states = 0, checkpoint = 100, debug = False):
