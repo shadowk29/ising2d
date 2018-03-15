@@ -114,7 +114,7 @@ class ising2d():
             self._energy_evolution()
             self._autocorrelation()
             self.delays = np.arange(len(self.autocorrelation))
-            default = 150
+            default = 150.0
             p0 = [next((i for i in self.delays if self.autocorrelation[i] < 0), default)/3.0]
             with warnings.catch_warnings():
                 try:
