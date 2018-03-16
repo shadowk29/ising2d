@@ -8,8 +8,6 @@ tqdm.monitor_interval = 0
 import itertools
 from collections import deque
 import os
-import warnings
-warnings.filterwarnings('error')
 
 class ising2d():
     def __init__(self, temperatures, fields, sizes, microstates, output_folder='.', save_states = 0, checkpoint = 100, debug = False):
@@ -117,14 +115,12 @@ class ising2d():
             self.delays = np.arange(len(self.autocorrelation))
             default = 150.0
             p0 = [next((i for i in self.delays if self.autocorrelation[i] < 0), default)/3.0]
-            with warnings.catch_warnings():
-                try:
-                    popt, pcov = curve_fit(self._exponential, self.delays, self.autocorrelation, p0=p0)
-                except Warning as e:
-                    self.thermalsteps *= 2
-                else:
-                    fitted  = True
-                    self.corrtime = popt[0]
+            popt, pcov = curve_fit(self._exponential, self.delays, self.autocorrelation, p0=p0)
+            if popt == p0:
+                self.thermalsteps *= 2
+            else:
+                self.corrtime = popt[0]
+                fitted = True
             
     def _spinflip(self, steps, mode=None):
         """ perform a single spin update step using the given algorithm """
