@@ -10,8 +10,7 @@ def main():
     ## get a list of unique temperatures and system sizes, and print them to check
     temperatures = observables['T'].unique()
     lengths = observables['L'].unique()
-    print 'Temperatures: {0}'.format(np.sort(temperatures))
-    print 'Lengths: {0}'.format(np.sort(lengths))
+
 
     ## define critical temperature for use later
     Tc=2/np.log(1+np.sqrt(2))
