@@ -60,7 +60,7 @@ class ising2d():
             if self.debug:
                 self._print_energy_evolution()
                 self._print_autocorrelation()
-            for k in tqdm(range(self.microstates), desc = 'Production'):
+            for k in tqdm(list(range(self.microstates)), desc = 'Production'):
                 self._update_microstate()
                 print_index = k
                 if print_index > 0:
@@ -146,9 +146,9 @@ class ising2d():
             self.energy_evolution = np.zeros(steps)
             
         if label:
-            iterator = tqdm(range(steps), desc=label)
+            iterator = tqdm(list(range(steps)), desc=label)
         else:
-            iterator = range(steps)
+            iterator = list(range(steps))
         for k in iterator:
             cluster, sign = self._build_cluster(self.probability)
             oldE = self.E
